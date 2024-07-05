@@ -1,0 +1,9 @@
+[package]
+name = "muzak"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4.38"
+dateparser = "0.2.1"
+symphonia = { version = "0.5.4", features = ["all", "opt-simd-sse"] }
