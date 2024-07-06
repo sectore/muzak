@@ -9,7 +9,7 @@ use super::{
     playback::PlaybackFrame,
 };
 
-pub trait Provider {
+pub trait MediaProvider {
     // Plugin Functionality
 
     /// Upgrades a Provider reference to a PlaybackProvider reference, if the Provider supports

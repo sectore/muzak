@@ -1,9 +1,11 @@
-use providers::{
+use devices::{builtin::cpal::CpalProvider, traits::Device, traits::DeviceProvider};
+use media::{
     builtin::symphonia::SymphoniaProvider,
-    traits::{MetadataProvider, PlaybackProvider, Provider},
+    traits::{MediaProvider, MetadataProvider},
 };
 
-mod providers;
+mod devices;
+mod media;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -22,4 +24,14 @@ fn main() {
         .expect("unknown error");
 
     println!("{:?}", metadata);
+    println!("opening device");
+
+    let mut dev_provider = CpalProvider::default();
+    let mut device = dev_provider
+        .get_default_device()
+        .expect("no default device");
+    let format = device.get_default_format().expect("no default format");
+    device.open_device(&format).expect("unable to open device");
+
+    println!("device should be open");
 }

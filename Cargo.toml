@@ -7,3 +7,5 @@ edition = "2021"
 chrono = "0.4.38"
 dateparser = "0.2.1"
 symphonia = { version = "0.5.4", features = ["all", "opt-simd-sse"] }
+cpal = "0.15.3"
+bitflags = "2.6.0"

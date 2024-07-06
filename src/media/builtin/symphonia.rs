@@ -9,14 +9,14 @@ use symphonia::core::{
     probe::{Hint, ProbeResult, ProbedMetadata},
 };
 
-use crate::providers::{
+use crate::media::{
     errors::{
         CloseError, MetadataError, OpenError, PlaybackReadError, PlaybackStartError,
         PlaybackStopError,
     },
     metadata::Metadata,
     playback::PlaybackFrame,
-    traits::{MetadataProvider, PlaybackProvider, Provider},
+    traits::{MediaProvider, MetadataProvider, PlaybackProvider},
 };
 
 #[derive(Default)]
@@ -127,7 +127,7 @@ impl SymphoniaProvider {
     }
 }
 
-impl Provider for SymphoniaProvider {
+impl MediaProvider for SymphoniaProvider {
     fn get_playback_provider(&mut self) -> Option<&mut impl PlaybackProvider> {
         Some(self)
     }
