@@ -1,20 +1,24 @@
+use ux::{i24, u24};
+
 pub enum Samples {
-    Float64(Vec<f64>),
-    Float32(Vec<f32>),
-    Signed32(Vec<i32>),
-    Unsigned32(Vec<u32>),
-    Signed16(Vec<i16>),
-    Unsigned16(Vec<u16>),
-    Signed8(Vec<i8>),
-    Unsigned8(Vec<u8>),
-    DSD(Vec<bool>),
+    Float64(Vec<Vec<f64>>),
+    Float32(Vec<Vec<f32>>),
+    Signed32(Vec<Vec<i32>>),
+    Unsigned32(Vec<Vec<u32>>),
+    Signed24(Vec<Vec<i24>>),
+    Unsigned24(Vec<Vec<u24>>),
+    Signed16(Vec<Vec<i16>>),
+    Unsigned16(Vec<Vec<u16>>),
+    Signed8(Vec<Vec<i8>>),
+    Unsigned8(Vec<Vec<u8>>),
+    DSD(Vec<Vec<bool>>),
 }
 
 pub enum SampleFromError {
     WrongFormat,
 }
 
-impl TryFrom<Samples> for Vec<f64> {
+impl TryFrom<Samples> for Vec<Vec<f64>> {
     type Error = SampleFromError;
 
     fn try_from(value: Samples) -> Result<Self, Self::Error> {
@@ -25,7 +29,7 @@ impl TryFrom<Samples> for Vec<f64> {
     }
 }
 
-impl TryFrom<Samples> for Vec<f32> {
+impl TryFrom<Samples> for Vec<Vec<f32>> {
     type Error = SampleFromError;
 
     fn try_from(value: Samples) -> Result<Self, Self::Error> {
@@ -36,7 +40,7 @@ impl TryFrom<Samples> for Vec<f32> {
     }
 }
 
-impl TryFrom<Samples> for Vec<u8> {
+impl TryFrom<Samples> for Vec<Vec<u8>> {
     type Error = SampleFromError;
 
     fn try_from(value: Samples) -> Result<Self, Self::Error> {
@@ -47,7 +51,7 @@ impl TryFrom<Samples> for Vec<u8> {
     }
 }
 
-impl TryFrom<Samples> for Vec<u16> {
+impl TryFrom<Samples> for Vec<Vec<u16>> {
     type Error = SampleFromError;
 
     fn try_from(value: Samples) -> Result<Self, Self::Error> {
@@ -58,7 +62,18 @@ impl TryFrom<Samples> for Vec<u16> {
     }
 }
 
-impl TryFrom<Samples> for Vec<u32> {
+impl TryFrom<Samples> for Vec<Vec<u24>> {
+    type Error = SampleFromError;
+
+    fn try_from(value: Samples) -> Result<Self, Self::Error> {
+        match value {
+            Samples::Unsigned24(v) => Ok(v),
+            _ => Err(SampleFromError::WrongFormat),
+        }
+    }
+}
+
+impl TryFrom<Samples> for Vec<Vec<u32>> {
     type Error = SampleFromError;
 
     fn try_from(value: Samples) -> Result<Self, Self::Error> {
@@ -69,7 +84,7 @@ impl TryFrom<Samples> for Vec<u32> {
     }
 }
 
-impl TryFrom<Samples> for Vec<i8> {
+impl TryFrom<Samples> for Vec<Vec<i8>> {
     type Error = SampleFromError;
 
     fn try_from(value: Samples) -> Result<Self, Self::Error> {
@@ -80,7 +95,7 @@ impl TryFrom<Samples> for Vec<i8> {
     }
 }
 
-impl TryFrom<Samples> for Vec<i16> {
+impl TryFrom<Samples> for Vec<Vec<i16>> {
     type Error = SampleFromError;
 
     fn try_from(value: Samples) -> Result<Self, Self::Error> {
@@ -91,7 +106,18 @@ impl TryFrom<Samples> for Vec<i16> {
     }
 }
 
-impl TryFrom<Samples> for Vec<i32> {
+impl TryFrom<Samples> for Vec<Vec<i24>> {
+    type Error = SampleFromError;
+
+    fn try_from(value: Samples) -> Result<Self, Self::Error> {
+        match value {
+            Samples::Signed24(v) => Ok(v),
+            _ => Err(SampleFromError::WrongFormat),
+        }
+    }
+}
+
+impl TryFrom<Samples> for Vec<Vec<i32>> {
     type Error = SampleFromError;
 
     fn try_from(value: Samples) -> Result<Self, Self::Error> {
@@ -102,7 +128,7 @@ impl TryFrom<Samples> for Vec<i32> {
     }
 }
 
-impl TryFrom<Samples> for Vec<bool> {
+impl TryFrom<Samples> for Vec<Vec<bool>> {
     type Error = SampleFromError;
 
     fn try_from(value: Samples) -> Result<Self, Self::Error> {
@@ -113,8 +139,6 @@ impl TryFrom<Samples> for Vec<bool> {
 }
 
 pub struct PlaybackFrame {
-    size: u32,
-    samples: Samples,
-    rate: u32, // god forbid someone invents a PCM format that samples faster than 4 billion Hz
-    ending: bool,
+    pub samples: Samples,
+    pub rate: u32, // god forbid someone invents a PCM format that samples faster than 4 billion Hz
 }

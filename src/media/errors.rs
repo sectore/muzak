@@ -13,6 +13,8 @@ pub enum CloseError {
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum PlaybackStartError {
     NothingOpen,
+    NothingToPlay,
+    Undecodable,
     BrokenContainer,
     ContainerSupportedButNotCodec,
     Unknown,
@@ -30,6 +32,7 @@ pub enum PlaybackReadError {
     NeverStarted,
     EOF,
     Unknown,
+    DecodeFatal,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]

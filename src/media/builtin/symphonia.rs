@@ -1,13 +1,18 @@
 use std::fs::File;
 
-use symphonia::core::{
-    codecs::{DecoderOptions, CODEC_TYPE_NULL},
-    errors::Error,
-    formats::{FormatOptions, FormatReader},
-    io::MediaSourceStream,
-    meta::{MetadataOptions, StandardTagKey, Tag, Value},
-    probe::{Hint, ProbeResult, ProbedMetadata},
+use symphonia::{
+    core::{
+        audio::{AudioBufferRef, Signal},
+        codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL},
+        errors::Error,
+        formats::{FormatOptions, FormatReader},
+        io::MediaSourceStream,
+        meta::{MetadataOptions, StandardTagKey, Tag, Value},
+        probe::{Hint, ProbeResult},
+    },
+    default::get_codecs,
 };
+use ux::{i24, u24};
 
 use crate::media::{
     errors::{
@@ -15,7 +20,7 @@ use crate::media::{
         PlaybackStopError,
     },
     metadata::Metadata,
-    playback::PlaybackFrame,
+    playback::{PlaybackFrame, Samples},
     traits::{MediaProvider, MetadataProvider, PlaybackProvider},
 };
 
@@ -23,6 +28,8 @@ use crate::media::{
 pub struct SymphoniaProvider {
     format: Option<Box<dyn FormatReader>>,
     current_metadata: Metadata,
+    current_track: u32,
+    decoder: Option<Box<dyn Decoder>>,
 }
 
 const SYMPHONIA_SUPPORTED_FILETYPES: [&'static str; 7] = [
@@ -164,7 +171,10 @@ impl MediaProvider for SymphoniaProvider {
     }
 
     fn close(&mut self) -> Result<(), CloseError> {
-        todo!()
+        self.stop_playback().expect("invalid outcome");
+        self.current_metadata = Metadata::default();
+        self.format = None;
+        Ok(())
     }
 
     fn get_name(&self) -> &'static str {
@@ -182,22 +192,242 @@ impl MediaProvider for SymphoniaProvider {
 
 impl PlaybackProvider for SymphoniaProvider {
     fn start_playback(&mut self) -> Result<(), PlaybackStartError> {
-        todo!()
+        if let Some(format) = &self.format {
+            let track = format
+                .tracks()
+                .iter()
+                .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+                .ok_or(PlaybackStartError::NothingToPlay)?;
+
+            self.current_track = track.id;
+
+            let dec_opts: DecoderOptions = Default::default();
+            self.decoder = Some(
+                get_codecs()
+                    .make(&track.codec_params, &dec_opts)
+                    .map_err(|_| PlaybackStartError::Undecodable)?,
+            );
+
+            Ok(())
+        } else {
+            Err(PlaybackStartError::NothingOpen)
+        }
     }
 
     fn stop_playback(&mut self) -> Result<(), PlaybackStopError> {
-        todo!()
+        self.current_track = 0;
+        self.decoder = None;
+
+        Ok(())
     }
 
     fn read_samples(&mut self) -> Result<PlaybackFrame, PlaybackReadError> {
-        todo!()
+        if let Some(format) = &mut self.format {
+            // this has a loop because the next packet may not be from the current track
+            loop {
+                let packet = match format.next_packet() {
+                    Ok(packet) => packet,
+                    Err(Error::ResetRequired) => return Err(PlaybackReadError::EOF),
+                    Err(_) => {
+                        // TODO: Handle better
+                        return Err(PlaybackReadError::EOF);
+                    }
+                };
+
+                while !format.metadata().is_latest() {
+                    // TODO: handle metadata updates
+                    format.metadata().pop();
+                }
+
+                if packet.track_id() == self.current_track {
+                    continue;
+                }
+
+                if let Some(decoder) = &mut self.decoder {
+                    match decoder.decode(&packet) {
+                        Ok(decoded) => {
+                            let rate = decoded.spec().rate;
+                            let channel_count = decoded.spec().channels.count();
+
+                            match decoded {
+                                AudioBufferRef::U8(v) => {
+                                    let mut samples: Vec<Vec<u8>> = Vec::new();
+
+                                    for i in 0..channel_count {
+                                        samples.push(Vec::new());
+                                        for sample in v.chan(0) {
+                                            samples[i].push(*sample);
+                                        }
+                                    }
+
+                                    return Ok(PlaybackFrame {
+                                        rate,
+                                        samples: Samples::Unsigned8(samples),
+                                    });
+                                }
+                                AudioBufferRef::U16(v) => {
+                                    let mut samples: Vec<Vec<u16>> = Vec::new();
+
+                                    for i in 0..channel_count {
+                                        samples.push(Vec::new());
+                                        for sample in v.chan(0) {
+                                            samples[i].push(*sample);
+                                        }
+                                    }
+
+                                    return Ok(PlaybackFrame {
+                                        rate,
+                                        samples: Samples::Unsigned16(samples),
+                                    });
+                                }
+                                AudioBufferRef::U24(v) => {
+                                    let mut samples: Vec<Vec<u24>> = Vec::new();
+
+                                    for i in 0..channel_count {
+                                        samples.push(Vec::new());
+                                        for sample in v.chan(0) {
+                                            samples[i].push(
+                                                u24::try_from(sample.0)
+                                                    .expect("24bit number is not 24bits long"),
+                                            );
+                                        }
+                                    }
+
+                                    return Ok(PlaybackFrame {
+                                        rate,
+                                        samples: Samples::Unsigned24(samples),
+                                    });
+                                }
+                                AudioBufferRef::U32(v) => {
+                                    let mut samples: Vec<Vec<u32>> = Vec::new();
+
+                                    for i in 0..channel_count {
+                                        samples.push(Vec::new());
+                                        for sample in v.chan(0) {
+                                            samples[i].push(*sample);
+                                        }
+                                    }
+
+                                    return Ok(PlaybackFrame {
+                                        rate,
+                                        samples: Samples::Unsigned32(samples),
+                                    });
+                                }
+                                AudioBufferRef::S8(v) => {
+                                    let mut samples: Vec<Vec<i8>> = Vec::new();
+
+                                    for i in 0..channel_count {
+                                        samples.push(Vec::new());
+                                        for sample in v.chan(0) {
+                                            samples[i].push(*sample);
+                                        }
+                                    }
+
+                                    return Ok(PlaybackFrame {
+                                        rate,
+                                        samples: Samples::Signed8(samples),
+                                    });
+                                }
+                                AudioBufferRef::S16(v) => {
+                                    let mut samples: Vec<Vec<i16>> = Vec::new();
+
+                                    for i in 0..channel_count {
+                                        samples.push(Vec::new());
+                                        for sample in v.chan(0) {
+                                            samples[i].push(*sample);
+                                        }
+                                    }
+
+                                    return Ok(PlaybackFrame {
+                                        rate,
+                                        samples: Samples::Signed16(samples),
+                                    });
+                                }
+                                AudioBufferRef::S24(v) => {
+                                    let mut samples: Vec<Vec<i24>> = Vec::new();
+
+                                    for i in 0..channel_count {
+                                        samples.push(Vec::new());
+                                        for sample in v.chan(0) {
+                                            samples[i].push(
+                                                i24::try_from(sample.0)
+                                                    .expect("24bit number is not 24bits long"),
+                                            );
+                                        }
+                                    }
+
+                                    return Ok(PlaybackFrame {
+                                        rate,
+                                        samples: Samples::Signed24(samples),
+                                    });
+                                }
+                                AudioBufferRef::S32(v) => {
+                                    let mut samples: Vec<Vec<i32>> = Vec::new();
+
+                                    for i in 0..channel_count {
+                                        samples.push(Vec::new());
+                                        for sample in v.chan(0) {
+                                            samples[i].push(*sample);
+                                        }
+                                    }
+
+                                    return Ok(PlaybackFrame {
+                                        rate,
+                                        samples: Samples::Signed32(samples),
+                                    });
+                                }
+                                AudioBufferRef::F32(v) => {
+                                    let mut samples: Vec<Vec<f32>> = Vec::new();
+
+                                    for i in 0..channel_count {
+                                        samples.push(Vec::new());
+                                        for sample in v.chan(0) {
+                                            samples[i].push(*sample);
+                                        }
+                                    }
+
+                                    return Ok(PlaybackFrame {
+                                        rate,
+                                        samples: Samples::Float32(samples),
+                                    });
+                                }
+                                AudioBufferRef::F64(v) => {
+                                    let mut samples: Vec<Vec<f64>> = Vec::new();
+
+                                    for i in 0..channel_count {
+                                        samples.push(Vec::new());
+                                        for sample in v.chan(0) {
+                                            samples[i].push(*sample);
+                                        }
+                                    }
+
+                                    return Ok(PlaybackFrame {
+                                        rate,
+                                        samples: Samples::Float64(samples),
+                                    });
+                                }
+                            }
+                        }
+                        Err(Error::IoError(_)) | Err(Error::DecodeError(_)) => {
+                            continue;
+                        }
+                        Err(_) => {
+                            return Err(PlaybackReadError::DecodeFatal);
+                        }
+                    }
+                } else {
+                    return Err(PlaybackReadError::NeverStarted);
+                }
+            }
+        } else {
+            Err(PlaybackReadError::NothingOpen)
+        }
     }
 }
 
 impl MetadataProvider for SymphoniaProvider {
     fn read_metadata(&mut self) -> Result<&Metadata, MetadataError> {
         if self.format.is_some() {
-            // TODO: handle metadata updates
             Ok(&self.current_metadata)
         } else {
             Err(MetadataError::NothingOpen)
