@@ -75,6 +75,7 @@ struct CpalDevice {
     stream: Option<cpal::Stream>,
     events_rx: Option<Receiver<CpalEvent>>,
     frame_tx: Option<Sender<PlaybackFrame>>,
+    current_format: Option<FormatInfo>,
 }
 
 impl From<cpal::Device> for CpalDevice {
@@ -84,6 +85,7 @@ impl From<cpal::Device> for CpalDevice {
             stream: None,
             events_rx: None,
             frame_tx: None,
+            current_format: None,
         }
     }
 }
@@ -149,21 +151,25 @@ impl CpalDevice {
 }
 
 impl Device for CpalDevice {
-    fn open_device(&mut self, format: &FormatInfo) -> Result<(), OpenError> {
+    fn open_device(&mut self, format: FormatInfo) -> Result<(), OpenError> {
         if format.originating_provider != "cpal" {
             Err(OpenError::InvalidConfigProvider)
         } else {
-            match format.sample_type {
-                SampleFormat::Signed8 => self.create_stream::<i8>(format),
-                SampleFormat::Signed16 => self.create_stream::<i16>(format),
-                SampleFormat::Signed32 => self.create_stream::<i32>(format),
-                SampleFormat::Unsigned8 => self.create_stream::<u8>(format),
-                SampleFormat::Unsigned16 => self.create_stream::<u16>(format),
-                SampleFormat::Unsigned32 => self.create_stream::<u32>(format),
-                SampleFormat::Float32 => self.create_stream::<f32>(format),
-                SampleFormat::Float64 => self.create_stream::<f64>(format),
+            let result = match format.sample_type {
+                SampleFormat::Signed8 => self.create_stream::<i8>(&format),
+                SampleFormat::Signed16 => self.create_stream::<i16>(&format),
+                SampleFormat::Signed32 => self.create_stream::<i32>(&format),
+                SampleFormat::Unsigned8 => self.create_stream::<u8>(&format),
+                SampleFormat::Unsigned16 => self.create_stream::<u16>(&format),
+                SampleFormat::Unsigned32 => self.create_stream::<u32>(&format),
+                SampleFormat::Float32 => self.create_stream::<f32>(&format),
+                SampleFormat::Float64 => self.create_stream::<f64>(&format),
                 _ => Err(OpenError::InvalidSampleFormat),
-            }
+            };
+
+            self.current_format = Some(format);
+
+            result
         }
     }
 
@@ -222,6 +228,14 @@ impl Device for CpalDevice {
             },
             channels: ChannelSpec::Count(format.channels()),
         })
+    }
+
+    fn get_current_format(&self) -> Result<&FormatInfo, InfoError> {
+        if let Some(format) = &self.current_format {
+            Ok(format)
+        } else {
+            Err(InfoError::RequiresOpenDevice)
+        }
     }
 
     fn get_name(&self) -> Result<String, InfoError> {

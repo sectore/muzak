@@ -6,6 +6,7 @@ use media::{
 
 mod devices;
 mod media;
+mod util;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -31,7 +32,7 @@ fn main() {
         .get_default_device()
         .expect("no default device");
     let format = device.get_default_format().expect("no default format");
-    device.open_device(&format).expect("unable to open device");
+    device.open_device(format).expect("unable to open device");
 
     println!("device should be open");
 }

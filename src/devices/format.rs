@@ -7,6 +7,8 @@ pub enum SampleFormat {
     Float32,
     Signed32,
     Unsigned32,
+    Signed24,
+    Unsigned24,
     Signed16,
     Unsigned16,
     Signed8,

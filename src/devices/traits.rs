@@ -16,12 +16,13 @@ pub trait DeviceProvider: Default {
 }
 
 pub trait Device {
-    fn open_device(&mut self, format: &FormatInfo) -> Result<(), OpenError>;
+    fn open_device(&mut self, format: FormatInfo) -> Result<(), OpenError>;
     fn close_device(&mut self) -> Result<(), CloseError>;
     fn submit_frame(&mut self, frame: PlaybackFrame) -> Result<(), SubmissionError>;
 
     fn get_supported_formats(&self) -> Result<Vec<SupportedFormat>, InfoError>;
     fn get_default_format(&self) -> Result<FormatInfo, InfoError>;
+    fn get_current_format(&self) -> Result<&FormatInfo, InfoError>;
     fn get_name(&self) -> Result<String, InfoError>;
     fn get_uid(&self) -> Result<String, InfoError>;
 }
