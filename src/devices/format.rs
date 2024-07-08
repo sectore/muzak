@@ -2,6 +2,7 @@ use std::ops::Range;
 
 use bitflags::bitflags;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SampleFormat {
     Float64,
     Float32,

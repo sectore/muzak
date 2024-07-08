@@ -1,5 +1,7 @@
 use ux::{i24, u24};
 
+use crate::devices::format::SampleFormat;
+
 pub enum Samples {
     Float64(Vec<Vec<f64>>),
     Float32(Vec<Vec<f32>>),
@@ -12,6 +14,24 @@ pub enum Samples {
     Signed8(Vec<Vec<i8>>),
     Unsigned8(Vec<Vec<u8>>),
     DSD(Vec<Vec<bool>>),
+}
+
+impl Samples {
+    pub fn is_format(&self, format: SampleFormat) -> bool {
+        match self {
+            Samples::Float64(_) => format == SampleFormat::Float64,
+            Samples::Float32(_) => format == SampleFormat::Float32,
+            Samples::Signed32(_) => format == SampleFormat::Signed32,
+            Samples::Unsigned32(_) => format == SampleFormat::Unsigned32,
+            Samples::Signed24(_) => format == SampleFormat::Signed24,
+            Samples::Unsigned24(_) => format == SampleFormat::Unsigned24,
+            Samples::Signed16(_) => format == SampleFormat::Signed16,
+            Samples::Unsigned16(_) => format == SampleFormat::Unsigned16,
+            Samples::Signed8(_) => format == SampleFormat::Signed8,
+            Samples::Unsigned8(_) => format == SampleFormat::Unsigned8,
+            Samples::DSD(_) => format == SampleFormat::DSD,
+        }
+    }
 }
 
 pub enum SampleFromError {

@@ -1,7 +1,5 @@
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, Sub};
 
-use chrono::offset;
-use symphonia::core::sample;
 use ux::{i24, u24};
 
 use crate::{
@@ -14,19 +12,33 @@ use crate::{
 
 use super::format::SampleFormat;
 
+trait Samplable:
+    Ord
+    + Sized
+    + Add
+    + Sub
+    + PanicingFrom<i64>
+    + WorkaroundInto<i64>
+    + Copy
+    + std::fmt::Debug
+    + BitCount
+    + Bounds
+{
+}
+
+impl Samplable for i32 {}
+impl Samplable for i24 {}
+impl Samplable for i16 {}
+impl Samplable for i8 {}
+impl Samplable for u32 {}
+impl Samplable for u24 {}
+impl Samplable for u16 {}
+impl Samplable for u8 {}
+
 fn integer_scale<T, U>(target: Vec<Vec<T>>) -> Vec<Vec<U>>
 where
-    T: Ord + Sized + Add + Sub + WorkaroundInto<i64> + Copy + BitCount + Bounds,
-    U: Ord
-        + Sized
-        + Add
-        + Sub
-        + PanicingFrom<i64>
-        + WorkaroundInto<i64>
-        + Copy
-        + std::fmt::Debug
-        + BitCount
-        + Bounds,
+    T: Samplable,
+    U: Samplable,
 {
     let mut channels: Vec<Vec<U>> = vec![];
 
@@ -64,168 +76,43 @@ where
     channels
 }
 
+pub fn convert_samples<T: Samplable>(target_frame: PlaybackFrame) -> Vec<Vec<T>> {
+    match target_frame.samples {
+        Samples::Float64(_) => todo!(),
+        Samples::Float32(_) => todo!(),
+        Samples::Signed32(v) => integer_scale(v),
+        Samples::Unsigned32(v) => integer_scale(v),
+        Samples::Signed24(v) => integer_scale(v),
+        Samples::Unsigned24(v) => integer_scale(v),
+        Samples::Signed16(v) => integer_scale(v),
+        Samples::Unsigned16(v) => integer_scale(v),
+        Samples::Signed8(v) => integer_scale(v),
+        Samples::Unsigned8(v) => integer_scale(v),
+        Samples::DSD(_) => unimplemented!(),
+    }
+}
+
 pub fn match_bit_depth(target_frame: PlaybackFrame, target_depth: SampleFormat) -> PlaybackFrame {
-    let samples = match target_depth {
-        SampleFormat::Float64 => todo!(),
-        SampleFormat::Float32 => todo!(),
-        SampleFormat::Signed32 => {
-            let mut samples = vec![];
+    let rate = target_frame.rate;
 
-            match target_frame.samples {
-                Samples::Float64(_) => todo!(),
-                Samples::Float32(_) => todo!(),
-                Samples::Signed32(v) => samples = v,
-                Samples::Unsigned32(v) => samples = integer_scale(v),
-                Samples::Signed24(v) => samples = integer_scale(v),
-                Samples::Unsigned24(v) => samples = integer_scale(v),
-                Samples::Signed16(v) => samples = integer_scale(v),
-                Samples::Unsigned16(v) => samples = integer_scale(v),
-                Samples::Signed8(v) => samples = integer_scale(v),
-                Samples::Unsigned8(v) => samples = integer_scale(v),
-                Samples::DSD(_) => unimplemented!(),
-            }
-
-            Samples::Signed32(samples)
+    let samples = if !target_frame.samples.is_format(target_depth) {
+        match target_depth {
+            SampleFormat::Float64 => todo!(),
+            SampleFormat::Float32 => todo!(),
+            SampleFormat::Signed32 => Samples::Signed32(convert_samples(target_frame)),
+            SampleFormat::Unsigned32 => Samples::Unsigned32(convert_samples(target_frame)),
+            SampleFormat::Signed24 => Samples::Signed24(convert_samples(target_frame)),
+            SampleFormat::Unsigned24 => Samples::Unsigned24(convert_samples(target_frame)),
+            SampleFormat::Signed16 => Samples::Signed16(convert_samples(target_frame)),
+            SampleFormat::Unsigned16 => Samples::Unsigned16(convert_samples(target_frame)),
+            SampleFormat::Signed8 => Samples::Signed8(convert_samples(target_frame)),
+            SampleFormat::Unsigned8 => Samples::Unsigned8(convert_samples(target_frame)),
+            SampleFormat::DSD => unimplemented!(),
+            SampleFormat::Unsupported => panic!("target depth is unsupported"),
         }
-        SampleFormat::Unsigned32 => {
-            let samples;
-
-            match target_frame.samples {
-                Samples::Float64(_) => todo!(),
-                Samples::Float32(_) => todo!(),
-                Samples::Signed32(v) => samples = integer_scale(v),
-                Samples::Unsigned32(v) => samples = v,
-                Samples::Signed24(v) => samples = integer_scale(v),
-                Samples::Unsigned24(v) => samples = integer_scale(v),
-                Samples::Signed16(v) => samples = integer_scale(v),
-                Samples::Unsigned16(v) => samples = integer_scale(v),
-                Samples::Signed8(v) => samples = integer_scale(v),
-                Samples::Unsigned8(v) => samples = integer_scale(v),
-                Samples::DSD(_) => unimplemented!(),
-            }
-
-            Samples::Unsigned32(samples)
-        }
-        SampleFormat::Signed24 => {
-            let samples;
-
-            match target_frame.samples {
-                Samples::Float64(_) => todo!(),
-                Samples::Float32(_) => todo!(),
-                Samples::Signed32(v) => samples = integer_scale(v),
-                Samples::Unsigned32(v) => samples = integer_scale(v),
-                Samples::Signed24(v) => samples = v,
-                Samples::Unsigned24(v) => samples = integer_scale(v),
-                Samples::Signed16(v) => samples = integer_scale(v),
-                Samples::Unsigned16(v) => samples = integer_scale(v),
-                Samples::Signed8(v) => samples = integer_scale(v),
-                Samples::Unsigned8(v) => samples = integer_scale(v),
-                Samples::DSD(_) => unimplemented!(),
-            }
-
-            Samples::Signed24(samples)
-        }
-        SampleFormat::Unsigned24 => {
-            let samples;
-
-            match target_frame.samples {
-                Samples::Float64(_) => todo!(),
-                Samples::Float32(_) => todo!(),
-                Samples::Signed32(v) => samples = integer_scale(v),
-                Samples::Unsigned32(v) => samples = integer_scale(v),
-                Samples::Signed24(v) => samples = integer_scale(v),
-                Samples::Unsigned24(v) => samples = v,
-                Samples::Signed16(v) => samples = integer_scale(v),
-                Samples::Unsigned16(v) => samples = integer_scale(v),
-                Samples::Signed8(v) => samples = integer_scale(v),
-                Samples::Unsigned8(v) => samples = integer_scale(v),
-                Samples::DSD(_) => unimplemented!(),
-            }
-
-            Samples::Unsigned24(samples)
-        }
-        SampleFormat::Signed16 => {
-            let samples;
-
-            match target_frame.samples {
-                Samples::Float64(_) => todo!(),
-                Samples::Float32(_) => todo!(),
-                Samples::Signed32(v) => samples = integer_scale(v),
-                Samples::Unsigned32(v) => samples = integer_scale(v),
-                Samples::Signed24(v) => samples = integer_scale(v),
-                Samples::Unsigned24(v) => samples = integer_scale(v),
-                Samples::Signed16(v) => samples = v,
-                Samples::Unsigned16(v) => samples = integer_scale(v),
-                Samples::Signed8(v) => samples = integer_scale(v),
-                Samples::Unsigned8(v) => samples = integer_scale(v),
-                Samples::DSD(_) => unimplemented!(),
-            }
-
-            Samples::Signed16(samples)
-        }
-        SampleFormat::Unsigned16 => {
-            let samples;
-
-            match target_frame.samples {
-                Samples::Float64(_) => todo!(),
-                Samples::Float32(_) => todo!(),
-                Samples::Signed32(v) => samples = integer_scale(v),
-                Samples::Unsigned32(v) => samples = integer_scale(v),
-                Samples::Signed24(v) => samples = integer_scale(v),
-                Samples::Unsigned24(v) => samples = integer_scale(v),
-                Samples::Signed16(v) => samples = integer_scale(v),
-                Samples::Unsigned16(v) => samples = v,
-                Samples::Signed8(v) => samples = integer_scale(v),
-                Samples::Unsigned8(v) => samples = integer_scale(v),
-                Samples::DSD(_) => unimplemented!(),
-            }
-
-            Samples::Unsigned16(samples)
-        }
-        SampleFormat::Signed8 => {
-            let samples;
-
-            match target_frame.samples {
-                Samples::Float64(_) => todo!(),
-                Samples::Float32(_) => todo!(),
-                Samples::Signed32(v) => samples = integer_scale(v),
-                Samples::Unsigned32(v) => samples = integer_scale(v),
-                Samples::Signed24(v) => samples = integer_scale(v),
-                Samples::Unsigned24(v) => samples = integer_scale(v),
-                Samples::Signed16(v) => samples = integer_scale(v),
-                Samples::Unsigned16(v) => samples = integer_scale(v),
-                Samples::Signed8(v) => samples = v,
-                Samples::Unsigned8(v) => samples = integer_scale(v),
-                Samples::DSD(_) => unimplemented!(),
-            }
-
-            Samples::Signed8(samples)
-        }
-        SampleFormat::Unsigned8 => {
-            let samples;
-
-            match target_frame.samples {
-                Samples::Float64(_) => todo!(),
-                Samples::Float32(_) => todo!(),
-                Samples::Signed32(v) => samples = integer_scale(v),
-                Samples::Unsigned32(v) => samples = integer_scale(v),
-                Samples::Signed24(v) => samples = integer_scale(v),
-                Samples::Unsigned24(v) => samples = integer_scale(v),
-                Samples::Signed16(v) => samples = integer_scale(v),
-                Samples::Unsigned16(v) => samples = integer_scale(v),
-                Samples::Signed8(v) => samples = integer_scale(v),
-                Samples::Unsigned8(v) => samples = v,
-                Samples::DSD(_) => unimplemented!(),
-            }
-
-            Samples::Unsigned8(samples)
-        }
-        SampleFormat::DSD => unimplemented!(),
-        SampleFormat::Unsupported => panic!("target depth is unsupported"),
+    } else {
+        target_frame.samples
     };
 
-    PlaybackFrame {
-        samples,
-        rate: target_frame.rate,
-    }
+    PlaybackFrame { samples, rate }
 }
