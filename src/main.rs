@@ -6,7 +6,6 @@ use media::{
 
 mod devices;
 mod media;
-mod util;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

@@ -10,3 +10,4 @@ symphonia = { version = "0.5.4", features = ["all", "opt-simd-sse"] }
 cpal = "0.15.3"
 bitflags = "2.6.0"
 ux = "0.1.6"
+rubato = "0.15.0"

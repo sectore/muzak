@@ -1,94 +1,138 @@
 use std::ops::{Add, Sub};
 
+use rubato::{
+    SincFixedIn, SincInterpolationParameters, SincInterpolationType, VecResampler, WindowFunction,
+};
+use symphonia::core::meta::Value;
 use ux::{i24, u24};
 
-use crate::{
-    media::playback::{PlaybackFrame, Samples},
-    util::{
-        num_info::{BitCount, Bounds},
-        ux_workaround::{PanicingFrom, WorkaroundInto},
-    },
-};
+use crate::media::playback::{PlaybackFrame, Samples};
 
-use super::format::SampleFormat;
+use super::format::{FormatInfo, SampleFormat};
 
-trait Samplable:
-    Ord
-    + Sized
-    + Add
-    + Sub
-    + PanicingFrom<i64>
-    + WorkaroundInto<i64>
-    + Copy
-    + std::fmt::Debug
-    + BitCount
-    + Bounds
-{
-}
-
-impl Samplable for i32 {}
-impl Samplable for i24 {}
-impl Samplable for i16 {}
-impl Samplable for i8 {}
-impl Samplable for u32 {}
-impl Samplable for u24 {}
-impl Samplable for u16 {}
-impl Samplable for u8 {}
-
-fn integer_scale<T, U>(target: Vec<Vec<T>>) -> Vec<Vec<U>>
+fn scale<T, U>(target: Vec<Vec<T>>) -> Vec<Vec<U>>
 where
-    T: Samplable,
-    U: Samplable,
+    T: Copy,
+    U: SampleFrom<T>,
 {
-    let mut channels: Vec<Vec<U>> = vec![];
-
-    for channel in target {
-        let mut vec = vec![];
-
-        // this doesn't work if someone tries to play like 7 bit audio but right now we don't
-        // support that
-        let offset = (2 as i64).pow((U::count() / 2) as u32) - 1;
-        let factor = (T::unsigned_max() / U::unsigned_max()) as i64;
-
-        for sample_original in channel {
-            let sample: i64 = sample_original.into_workaround() + offset;
-            let scaled_sample;
-
-            if T::count() > U::count() {
-                scaled_sample = sample / factor;
-            } else {
-                scaled_sample = sample * factor;
-            }
-
-            let clamped_sample = scaled_sample.clamp(
-                U::min_val().into_workaround(),
-                U::max_val().into_workaround(),
-            );
-
-            let result = U::panic_from(clamped_sample);
-
-            vec.push(result);
-        }
-
-        channels.push(vec);
-    }
-
-    channels
+    target
+        .iter()
+        .map(|v| v.iter().map(|v| U::sample_from(*v)).collect())
+        .collect()
 }
 
-pub fn convert_samples<T: Samplable>(target_frame: PlaybackFrame) -> Vec<Vec<T>> {
-    match target_frame.samples {
-        Samples::Float64(_) => todo!(),
-        Samples::Float32(_) => todo!(),
-        Samples::Signed32(v) => integer_scale(v),
-        Samples::Unsigned32(v) => integer_scale(v),
-        Samples::Signed24(v) => integer_scale(v),
-        Samples::Unsigned24(v) => integer_scale(v),
-        Samples::Signed16(v) => integer_scale(v),
-        Samples::Unsigned16(v) => integer_scale(v),
-        Samples::Signed8(v) => integer_scale(v),
-        Samples::Unsigned8(v) => integer_scale(v),
+pub fn convert_samples<T>(target_frame: Samples) -> Vec<Vec<T>>
+where
+    T: Copy + SampleInto<f64> + SampleFrom<f64>,
+{
+    match target_frame {
+        Samples::Float64(v) => scale(v),
+        Samples::Float32(v) => scale(v),
+        Samples::Signed32(v) => scale(v),
+        Samples::Unsigned32(v) => scale(v),
+        Samples::Signed24(v) => scale(v),
+        Samples::Unsigned24(v) => scale(v),
+        Samples::Signed16(v) => scale(v),
+        Samples::Unsigned16(v) => scale(v),
+        Samples::Signed8(v) => scale(v),
+        Samples::Unsigned8(v) => scale(v),
         Samples::DSD(_) => unimplemented!(),
+    }
+}
+
+pub trait SampleInto<T> {
+    fn sample_into(self) -> T;
+}
+
+impl SampleInto<f64> for u24 {
+    fn sample_into(self) -> f64 {
+        f64::from(u32::from(self)) / f64::from(i32::from(i24::MAX)) - 1.0
+    }
+}
+
+impl SampleInto<f64> for i24 {
+    fn sample_into(self) -> f64 {
+        f64::from(i32::from(self)) / f64::from(i32::from(i24::MAX)) - 1.0
+    }
+}
+
+impl SampleInto<f64> for f32 {
+    fn sample_into(self) -> f64 {
+        self as f64
+    }
+}
+
+macro_rules! f64_to {
+    ($t:ty, $max_type:ty, $offset:expr) => {
+        impl SampleInto<f64> for $t {
+            fn sample_into(self) -> f64 {
+                f64::from(self) / (f64::from(<$max_type>::MAX)) + $offset
+            }
+        }
+    };
+}
+
+f64_to!(u32, i32, -1.0);
+f64_to!(u16, i16, -1.0);
+f64_to!(u8, i8, -1.0);
+f64_to!(i32, i32, 0.0);
+f64_to!(i16, i16, 0.0);
+f64_to!(i8, i8, 0.0);
+
+pub trait SampleFrom<T> {
+    fn sample_from(value: T) -> Self;
+}
+
+impl SampleFrom<f64> for u24 {
+    fn sample_from(value: f64) -> Self {
+        u24::try_from(((value + 1.0) * f64::from(i32::from(i24::MAX))) as u32)
+            .expect("out of u24 bounds")
+    }
+}
+
+impl SampleFrom<f64> for i24 {
+    fn sample_from(value: f64) -> Self {
+        i24::try_from((value * f64::from(i32::from(i24::MAX))) as i32).expect("out of u24 bounds")
+    }
+}
+
+impl SampleFrom<f64> for f32 {
+    fn sample_from(value: f64) -> Self {
+        value as f32
+    }
+}
+
+macro_rules! f64_from {
+    ($t:ty, $max_type:ty, $offset:expr) => {
+        impl SampleFrom<f64> for $t {
+            fn sample_from(value: f64) -> $t {
+                ((value - $offset) * f64::from(<$max_type>::MAX)) as $t
+            }
+        }
+    };
+}
+
+f64_from!(u32, i32, -1.0);
+f64_from!(u16, i16, -1.0);
+f64_from!(u8, i8, -1.0);
+f64_from!(i32, i32, 0.0);
+f64_from!(i16, i16, 0.0);
+f64_from!(i8, i8, 0.0);
+
+impl<T, U> SampleFrom<T> for U
+where
+    T: SampleInto<f64>,
+    U: SampleFrom<f64>,
+{
+    fn sample_from(value: T) -> Self {
+        let a: f64 = T::sample_into(value);
+        return U::sample_from(a);
+    }
+}
+
+impl SampleFrom<f64> for f64 {
+    fn sample_from(value: f64) -> Self {
+        value
     }
 }
 
@@ -98,15 +142,15 @@ pub fn match_bit_depth(target_frame: PlaybackFrame, target_depth: SampleFormat) 
     let samples = if !target_frame.samples.is_format(target_depth) {
         match target_depth {
             SampleFormat::Float64 => todo!(),
-            SampleFormat::Float32 => todo!(),
-            SampleFormat::Signed32 => Samples::Signed32(convert_samples(target_frame)),
-            SampleFormat::Unsigned32 => Samples::Unsigned32(convert_samples(target_frame)),
-            SampleFormat::Signed24 => Samples::Signed24(convert_samples(target_frame)),
-            SampleFormat::Unsigned24 => Samples::Unsigned24(convert_samples(target_frame)),
-            SampleFormat::Signed16 => Samples::Signed16(convert_samples(target_frame)),
-            SampleFormat::Unsigned16 => Samples::Unsigned16(convert_samples(target_frame)),
-            SampleFormat::Signed8 => Samples::Signed8(convert_samples(target_frame)),
-            SampleFormat::Unsigned8 => Samples::Unsigned8(convert_samples(target_frame)),
+            SampleFormat::Float32 => Samples::Float32(convert_samples(target_frame.samples)),
+            SampleFormat::Signed32 => Samples::Signed32(convert_samples(target_frame.samples)),
+            SampleFormat::Unsigned32 => Samples::Unsigned32(convert_samples(target_frame.samples)),
+            SampleFormat::Signed24 => Samples::Signed24(convert_samples(target_frame.samples)),
+            SampleFormat::Unsigned24 => Samples::Unsigned24(convert_samples(target_frame.samples)),
+            SampleFormat::Signed16 => Samples::Signed16(convert_samples(target_frame.samples)),
+            SampleFormat::Unsigned16 => Samples::Unsigned16(convert_samples(target_frame.samples)),
+            SampleFormat::Signed8 => Samples::Signed8(convert_samples(target_frame.samples)),
+            SampleFormat::Unsigned8 => Samples::Unsigned8(convert_samples(target_frame.samples)),
             SampleFormat::DSD => unimplemented!(),
             SampleFormat::Unsupported => panic!("target depth is unsupported"),
         }
@@ -115,4 +159,53 @@ pub fn match_bit_depth(target_frame: PlaybackFrame, target_depth: SampleFormat) 
     };
 
     PlaybackFrame { samples, rate }
+}
+
+fn do_resample<T: rubato::Sample>(
+    samples: &Vec<Vec<T>>,
+    original_rate: u32,
+    target_rate: u32,
+) -> Vec<Vec<T>> {
+    let params = SincInterpolationParameters {
+        sinc_len: 256,
+        f_cutoff: 0.95,
+        interpolation: SincInterpolationType::Linear,
+        oversampling_factor: 256,
+        window: WindowFunction::BlackmanHarris2,
+    };
+
+    let mut resampler = SincFixedIn::<T>::new(
+        target_rate as f64 / original_rate as f64,
+        2.0,
+        params,
+        1024,
+        2,
+    )
+    .unwrap();
+
+    resampler.process(&samples, None).expect("resampler error")
+}
+
+pub trait Convertable {
+    fn convert_formats(self, target_format: FormatInfo) -> Self;
+}
+
+impl Convertable for PlaybackFrame {
+    fn convert_formats(self, target_format: FormatInfo) -> Self {
+        if target_format.sample_rate != self.rate {
+            let curr_rate = self.rate;
+            let source: Vec<Vec<f32>> = convert_samples(self.samples);
+            let resampled = do_resample(&source, curr_rate, target_format.sample_rate);
+
+            match_bit_depth(
+                PlaybackFrame {
+                    samples: Samples::Float32(resampled),
+                    rate: target_format.sample_rate,
+                },
+                target_format.sample_type,
+            )
+        } else {
+            match_bit_depth(self, target_format.sample_type)
+        }
+    }
 }
