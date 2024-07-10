@@ -16,7 +16,7 @@ use ux::{i24, u24};
 
 use crate::media::{
     errors::{
-        CloseError, MetadataError, OpenError, PlaybackReadError, PlaybackStartError,
+        CloseError, DurationError, MetadataError, OpenError, PlaybackReadError, PlaybackStartError,
         PlaybackStopError,
     },
     metadata::Metadata,
@@ -29,6 +29,7 @@ pub struct SymphoniaProvider {
     format: Option<Box<dyn FormatReader>>,
     current_metadata: Metadata,
     current_track: u32,
+    current_duration: u64,
     decoder: Option<Box<dyn Decoder>>,
 }
 
@@ -248,6 +249,7 @@ impl PlaybackProvider for SymphoniaProvider {
                         Ok(decoded) => {
                             let rate = decoded.spec().rate;
                             let channel_count = decoded.spec().channels.count();
+                            self.current_duration = decoded.capacity() as u64;
 
                             match decoded {
                                 AudioBufferRef::U8(v) => {
@@ -421,6 +423,16 @@ impl PlaybackProvider for SymphoniaProvider {
             }
         } else {
             Err(PlaybackReadError::NothingOpen)
+        }
+    }
+
+    fn duration_frames(&self) -> Result<u64, DurationError> {
+        if self.decoder.is_none() {
+            Err(DurationError::NothingOpen)
+        } else if self.current_duration == 0 {
+            Err(DurationError::NeverDecoded)
+        } else {
+            Ok(self.current_duration)
         }
     }
 }

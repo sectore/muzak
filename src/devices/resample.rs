@@ -162,50 +162,39 @@ pub fn match_bit_depth(target_frame: PlaybackFrame, target_depth: SampleFormat) 
     PlaybackFrame { samples, rate }
 }
 
-fn do_resample<T: rubato::Sample>(
-    samples: &Vec<Vec<T>>,
-    original_rate: u32,
-    target_rate: u32,
-) -> Vec<Vec<T>> {
-    let params = SincInterpolationParameters {
-        sinc_len: 256,
-        f_cutoff: 0.95,
-        interpolation: SincInterpolationType::Linear,
-        oversampling_factor: 256,
-        window: WindowFunction::BlackmanHarris2,
-    };
-
-    println!(
-        "resample ratio: {:?}",
-        target_rate as f64 / original_rate as f64
-    );
-
-    let mut resampler = FftFixedIn::<T>::new(
-        original_rate as usize,
-        target_rate as usize,
-        samples[0].len(),
-        2,
-        samples.len(),
-    )
-    .unwrap();
-
-    resampler.process(&samples, None).expect("resampler error")
+pub struct Resampler {
+    resampler: FftFixedIn<f32>,
 }
 
-pub trait Convertable {
-    fn convert_formats(self, target_format: FormatInfo) -> Self;
-}
+impl Resampler {
+    pub fn new(orig_rate: u32, target_rate: u32, duration: u64, channels: u16) -> Self {
+        let resampler = FftFixedIn::<f32>::new(
+            orig_rate as usize,
+            target_rate as usize,
+            duration as usize,
+            2,
+            channels as usize,
+        )
+        .unwrap();
 
-impl Convertable for PlaybackFrame {
-    fn convert_formats(self, target_format: FormatInfo) -> Self {
-        if target_format.sample_rate != self.rate {
+        Resampler { resampler }
+    }
+
+    pub fn convert_formats(
+        &mut self,
+        frame: PlaybackFrame,
+        target_format: FormatInfo,
+    ) -> PlaybackFrame {
+        if target_format.sample_rate != frame.rate {
             println!(
                 "resampling from {:?} to {:?}",
-                self.rate, target_format.sample_rate
+                frame.rate, target_format.sample_rate
             );
-            let curr_rate = self.rate;
-            let source: Vec<Vec<f32>> = convert_samples(self.samples);
-            let resampled = do_resample(&source, curr_rate, target_format.sample_rate);
+            let source: Vec<Vec<f32>> = convert_samples(frame.samples);
+            let resampled = self
+                .resampler
+                .process(&source, None)
+                .expect("resampler error");
 
             match_bit_depth(
                 PlaybackFrame {
@@ -215,7 +204,7 @@ impl Convertable for PlaybackFrame {
                 target_format.sample_type,
             )
         } else {
-            match_bit_depth(self, target_format.sample_type)
+            match_bit_depth(frame, target_format.sample_type)
         }
     }
 }

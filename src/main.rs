@@ -1,14 +1,20 @@
-use std::io::{Read, Write};
+use std::{
+    convert,
+    io::{Read, Write},
+};
 
 use devices::{
     builtin::cpal::CpalProvider,
-    resample::Convertable,
+    format::ChannelSpec,
+    resample::Resampler,
     traits::{Device, DeviceProvider},
 };
 use media::{
     builtin::symphonia::SymphoniaProvider,
+    playback::UnwrapSample,
     traits::{MediaProvider, MetadataProvider, PlaybackProvider},
 };
+use symphonia::core::{conv, sample};
 
 mod devices;
 mod media;
@@ -50,9 +56,23 @@ fn main() {
     provider.start_playback().expect("unable to start decode");
     println!("HOPEFULLY AUDIO PLAYS");
 
+    let first_samples = provider.read_samples().expect("unable to read samples");
+    let duration = provider.duration_frames().expect("can't get duration");
+    let mut resampler = Resampler::new(
+        first_samples.rate,
+        device_format.sample_rate,
+        duration,
+        match device_format.channels {
+            ChannelSpec::Count(v) => v,
+            _ => 2,
+        },
+    );
+    let converted = resampler.convert_formats(first_samples, device_format.clone());
+    stream.submit_frame(converted);
+
     loop {
         let first_samples = provider.read_samples().expect("unable to read samples");
-        let converted = first_samples.convert_formats(device_format.clone());
+        let converted = resampler.convert_formats(first_samples, device_format.clone());
         stream.submit_frame(converted);
     }
 }

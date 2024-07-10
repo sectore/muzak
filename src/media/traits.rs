@@ -2,7 +2,7 @@ use std::fs::File;
 
 use super::{
     errors::{
-        CloseError, MetadataError, OpenError, PlaybackReadError, PlaybackStartError,
+        CloseError, DurationError, MetadataError, OpenError, PlaybackReadError, PlaybackStartError,
         PlaybackStopError,
     },
     metadata::Metadata,
@@ -48,6 +48,8 @@ pub trait PlaybackProvider {
 
     /// Requests the Provider provide samples for playback.
     fn read_samples(&mut self) -> Result<PlaybackFrame, PlaybackReadError>;
+
+    fn duration_frames(&self) -> Result<u64, DurationError>;
 }
 
 pub trait MetadataProvider {

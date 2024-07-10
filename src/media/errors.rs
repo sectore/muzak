@@ -40,3 +40,10 @@ pub enum MetadataError {
     NothingOpen,
     Unknown,
 }
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum DurationError {
+    NothingOpen,
+    NeverDecoded,
+    Unknown,
+}
