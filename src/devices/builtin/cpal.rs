@@ -1,6 +1,7 @@
 use std::{
+    collections::VecDeque,
     ops::Range,
-    sync::mpsc::{Receiver, Sender},
+    sync::mpsc::{self, Receiver, Sender},
 };
 
 use crate::{
@@ -10,14 +11,15 @@ use crate::{
             SubmissionError,
         },
         format::{BufferSize, ChannelSpec, FormatInfo, SampleFormat, SupportedFormat},
-        traits::{Device, DeviceProvider},
+        traits::{Device, DeviceProvider, OutputStream},
     },
-    media::playback::PlaybackFrame,
+    media::playback::{GetInnerSamples, PlaybackFrame},
 };
 use cpal::{
     traits::{DeviceTrait, HostTrait},
-    Host, SizedSample, SupportedStreamConfig, SupportedStreamConfigRange,
+    Host, SizedSample,
 };
+use rb::{RbConsumer, RbProducer, SpscRb, RB};
 
 pub struct CpalProvider {
     host: Host,
@@ -72,21 +74,11 @@ enum CpalEvent {
 
 struct CpalDevice {
     device: cpal::Device,
-    stream: Option<cpal::Stream>,
-    events_rx: Option<Receiver<CpalEvent>>,
-    frame_tx: Option<Sender<PlaybackFrame>>,
-    current_format: Option<FormatInfo>,
 }
 
 impl From<cpal::Device> for CpalDevice {
     fn from(value: cpal::Device) -> Self {
-        CpalDevice {
-            device: value,
-            stream: None,
-            events_rx: None,
-            frame_tx: None,
-            current_format: None,
-        }
+        CpalDevice { device: value }
     }
 }
 
@@ -133,53 +125,79 @@ fn cpal_config_from_info(format: &FormatInfo) -> Result<cpal::StreamConfig, ()> 
     }
 }
 
+fn interleave<T>(samples: Vec<Vec<T>>) -> Vec<T>
+where
+    T: Copy,
+{
+    if samples.is_empty() {
+        return vec![];
+    }
+
+    let length = samples.len();
+    let mut result = vec![];
+
+    for i in 0..(samples.len() * samples[0].len()) {
+        result.push(samples[length - (i % length) - 1][i / length]);
+    }
+
+    result
+}
+
 impl CpalDevice {
-    fn create_stream<T: SizedSample>(&mut self, format: &FormatInfo) -> Result<(), OpenError> {
-        let config = cpal_config_from_info(format).map_err(|_| OpenError::InvalidConfigProvider)?;
-        self.stream = Some(
-            self.device
-                .build_output_stream(
-                    &config,
-                    move |data: &mut [T], _: &cpal::OutputCallbackInfo| {},
-                    move |err| {},
-                    None,
-                )
-                .map_err(|_| OpenError::Unknown)?,
-        );
-        Ok(())
+    fn create_stream<T: SizedSample + GetInnerSamples + Default + Send + Sized + 'static>(
+        &mut self,
+        format: FormatInfo,
+    ) -> Result<Box<dyn OutputStream>, OpenError> {
+        let config =
+            cpal_config_from_info(&format).map_err(|_| OpenError::InvalidConfigProvider)?;
+
+        let channels = match format.channels {
+            ChannelSpec::Count(v) => v,
+            _ => panic!("non cpal device"),
+        };
+
+        let buffer_size = ((200 * config.sample_rate.0 as usize) / 1000) * channels as usize;
+        let rb: SpscRb<T> = SpscRb::new(buffer_size);
+        let cons = rb.consumer();
+        let prod = rb.producer();
+
+        let stream = self
+            .device
+            .build_output_stream(
+                &config,
+                move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
+                    cons.read(data).unwrap_or(0);
+                },
+                move |err| {},
+                None,
+            )
+            .map_err(|_| OpenError::Unknown)?;
+
+        Ok(Box::new(CpalStream {
+            ring_buf: prod,
+            stream,
+            format,
+        }))
     }
 }
 
 impl Device for CpalDevice {
-    fn open_device(&mut self, format: FormatInfo) -> Result<(), OpenError> {
+    fn open_device(&mut self, format: FormatInfo) -> Result<Box<dyn OutputStream>, OpenError> {
         if format.originating_provider != "cpal" {
             Err(OpenError::InvalidConfigProvider)
         } else {
-            let result = match format.sample_type {
-                SampleFormat::Signed8 => self.create_stream::<i8>(&format),
-                SampleFormat::Signed16 => self.create_stream::<i16>(&format),
-                SampleFormat::Signed32 => self.create_stream::<i32>(&format),
-                SampleFormat::Unsigned8 => self.create_stream::<u8>(&format),
-                SampleFormat::Unsigned16 => self.create_stream::<u16>(&format),
-                SampleFormat::Unsigned32 => self.create_stream::<u32>(&format),
-                SampleFormat::Float32 => self.create_stream::<f32>(&format),
-                SampleFormat::Float64 => self.create_stream::<f64>(&format),
+            match format.sample_type {
+                SampleFormat::Signed8 => self.create_stream::<i8>(format),
+                SampleFormat::Signed16 => self.create_stream::<i16>(format),
+                SampleFormat::Signed32 => self.create_stream::<i32>(format),
+                SampleFormat::Unsigned8 => self.create_stream::<u8>(format),
+                SampleFormat::Unsigned16 => self.create_stream::<u16>(format),
+                SampleFormat::Unsigned32 => self.create_stream::<u32>(format),
+                SampleFormat::Float32 => self.create_stream::<f32>(format),
+                SampleFormat::Float64 => self.create_stream::<f64>(format),
                 _ => Err(OpenError::InvalidSampleFormat),
-            };
-
-            self.current_format = Some(format);
-
-            result
+            }
         }
-    }
-
-    fn close_device(&mut self) -> Result<(), CloseError> {
-        self.stream = None;
-        Ok(())
-    }
-
-    fn submit_frame(&mut self, frame: PlaybackFrame) -> Result<(), SubmissionError> {
-        todo!()
     }
 
     fn get_supported_formats(&self) -> Result<Vec<SupportedFormat>, InfoError> {
@@ -230,19 +248,55 @@ impl Device for CpalDevice {
         })
     }
 
-    fn get_current_format(&self) -> Result<&FormatInfo, InfoError> {
-        if let Some(format) = &self.current_format {
-            Ok(format)
-        } else {
-            Err(InfoError::RequiresOpenDevice)
-        }
-    }
-
     fn get_name(&self) -> Result<String, InfoError> {
         self.device.name().map_err(|_| InfoError::Unknown)
     }
 
     fn get_uid(&self) -> Result<String, InfoError> {
         self.device.name().map_err(|_| InfoError::Unknown)
+    }
+
+    fn requires_matching_format(&self) -> bool {
+        false
+    }
+}
+
+struct CpalStream<T>
+where
+    T: GetInnerSamples + SizedSample + Default,
+{
+    pub ring_buf: rb::Producer<T>,
+    pub stream: cpal::Stream,
+    pub format: FormatInfo,
+}
+
+impl<T> OutputStream for CpalStream<T>
+where
+    T: GetInnerSamples + SizedSample + Default,
+{
+    fn submit_frame(&mut self, frame: PlaybackFrame) -> Result<(), SubmissionError> {
+        let samples = T::inner(frame.samples);
+        println!("{:?}", samples[0].len());
+        let interleaved = interleave(samples);
+        println!("{:?}", interleaved.len());
+        let mut slice: &[T] = &interleaved;
+
+        while let Some(written) = self.ring_buf.write_blocking(slice) {
+            slice = &slice[written..];
+        }
+
+        Ok(())
+    }
+
+    fn close_stream(&mut self) -> Result<(), CloseError> {
+        Ok(())
+    }
+
+    fn needs_input(&self) -> bool {
+        true // will always be true as long as the submitting thread is not blocked by submit_frame
+    }
+
+    fn get_current_format(&self) -> Result<&FormatInfo, InfoError> {
+        Ok(&self.format)
     }
 }

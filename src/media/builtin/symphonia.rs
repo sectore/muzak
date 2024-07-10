@@ -239,7 +239,7 @@ impl PlaybackProvider for SymphoniaProvider {
                     format.metadata().pop();
                 }
 
-                if packet.track_id() == self.current_track {
+                if packet.track_id() != self.current_track {
                     continue;
                 }
 

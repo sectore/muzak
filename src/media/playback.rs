@@ -34,6 +34,60 @@ impl Samples {
     }
 }
 
+pub trait UnwrapSample<T> {
+    fn unwrap(self) -> T;
+}
+
+macro_rules! unwrap_impl {
+    ($t:ty, $m:path) => {
+        impl UnwrapSample<Vec<Vec<$t>>> for Samples {
+            fn unwrap(self) -> Vec<Vec<$t>> {
+                match self {
+                    $m(v) => v,
+                    _ => panic!("invalid sample format during unwrap"),
+                }
+            }
+        }
+    };
+}
+
+unwrap_impl!(f64, Samples::Float64);
+unwrap_impl!(f32, Samples::Float32);
+unwrap_impl!(u32, Samples::Unsigned32);
+unwrap_impl!(u24, Samples::Unsigned24);
+unwrap_impl!(u16, Samples::Unsigned16);
+unwrap_impl!(u8, Samples::Unsigned8);
+unwrap_impl!(i32, Samples::Signed32);
+unwrap_impl!(i24, Samples::Signed24);
+unwrap_impl!(i16, Samples::Signed16);
+unwrap_impl!(i8, Samples::Signed8);
+unwrap_impl!(bool, Samples::DSD);
+
+pub trait GetInnerSamples: Sized {
+    fn inner(samples: Samples) -> Vec<Vec<Self>>;
+}
+
+macro_rules! inner_impl {
+    ($t:ty) => {
+        impl GetInnerSamples for $t {
+            fn inner(samples: Samples) -> Vec<Vec<Self>> {
+                samples.unwrap()
+            }
+        }
+    };
+    ($t:ty, $($tail:tt)*) => {
+        impl GetInnerSamples for $t {
+            fn inner(samples: Samples) -> Vec<Vec<Self>> {
+                samples.unwrap()
+            }
+        }
+
+        inner_impl!($($tail)*);
+    };
+}
+
+inner_impl!(f64, f32, u32, u24, u16, u8, i32, i24, i16, i8, bool);
+
 pub enum SampleFromError {
     WrongFormat,
 }

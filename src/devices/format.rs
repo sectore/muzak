@@ -18,17 +18,20 @@ pub enum SampleFormat {
     Unsupported,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum ChannelSpec {
     Bitmask(Channels),
     Count(u16),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum BufferSize {
     Range(Range<u32>),
     Fixed(u32),
     Unknown,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct FormatInfo {
     pub originating_provider: &'static str,
     pub sample_type: SampleFormat,
@@ -45,7 +48,7 @@ pub struct SupportedFormat {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Default, Debug, Clone, PartialEq)]
     pub struct Channels: u32 {
         const FRONT_LEFT            = 0x1;
         const FRONT_RIGHT           = 0x2;

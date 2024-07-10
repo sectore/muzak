@@ -1,7 +1,13 @@
-use devices::{builtin::cpal::CpalProvider, traits::Device, traits::DeviceProvider};
+use std::io::{Read, Write};
+
+use devices::{
+    builtin::cpal::CpalProvider,
+    resample::Convertable,
+    traits::{Device, DeviceProvider},
+};
 use media::{
     builtin::symphonia::SymphoniaProvider,
-    traits::{MediaProvider, MetadataProvider},
+    traits::{MediaProvider, MetadataProvider, PlaybackProvider},
 };
 
 mod devices;
@@ -23,7 +29,7 @@ fn main() {
         .read_metadata()
         .expect("unknown error");
 
-    println!("{:?}", metadata);
+    println!("metadata: {:?}", metadata);
     println!("opening device");
 
     let mut dev_provider = CpalProvider::default();
@@ -31,7 +37,22 @@ fn main() {
         .get_default_device()
         .expect("no default device");
     let format = device.get_default_format().expect("no default format");
-    device.open_device(format).expect("unable to open device");
+    let mut stream = device.open_device(format).expect("unable to open device");
+    let device_format = stream
+        .get_current_format()
+        .expect("device should be open")
+        .clone();
 
-    println!("device should be open");
+    println!("device name: {:?}", device.get_name());
+    println!("device information: {:?}", device_format);
+
+    println!("starting decode");
+    provider.start_playback().expect("unable to start decode");
+    println!("HOPEFULLY AUDIO PLAYS");
+
+    loop {
+        let first_samples = provider.read_samples().expect("unable to read samples");
+        let converted = first_samples.convert_formats(device_format.clone());
+        stream.submit_frame(converted);
+    }
 }

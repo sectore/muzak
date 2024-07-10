@@ -1,7 +1,8 @@
 use std::ops::{Add, Sub};
 
 use rubato::{
-    SincFixedIn, SincInterpolationParameters, SincInterpolationType, VecResampler, WindowFunction,
+    FftFixedIn, SincFixedIn, SincInterpolationParameters, SincInterpolationType, VecResampler,
+    WindowFunction,
 };
 use symphonia::core::meta::Value;
 use ux::{i24, u24};
@@ -174,12 +175,17 @@ fn do_resample<T: rubato::Sample>(
         window: WindowFunction::BlackmanHarris2,
     };
 
-    let mut resampler = SincFixedIn::<T>::new(
-        target_rate as f64 / original_rate as f64,
-        2.0,
-        params,
-        1024,
+    println!(
+        "resample ratio: {:?}",
+        target_rate as f64 / original_rate as f64
+    );
+
+    let mut resampler = FftFixedIn::<T>::new(
+        original_rate as usize,
+        target_rate as usize,
+        samples[0].len(),
         2,
+        samples.len(),
     )
     .unwrap();
 
@@ -193,6 +199,10 @@ pub trait Convertable {
 impl Convertable for PlaybackFrame {
     fn convert_formats(self, target_format: FormatInfo) -> Self {
         if target_format.sample_rate != self.rate {
+            println!(
+                "resampling from {:?} to {:?}",
+                self.rate, target_format.sample_rate
+            );
             let curr_rate = self.rate;
             let source: Vec<Vec<f32>> = convert_samples(self.samples);
             let resampled = do_resample(&source, curr_rate, target_format.sample_rate);
