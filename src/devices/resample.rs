@@ -164,10 +164,13 @@ pub fn match_bit_depth(target_frame: PlaybackFrame, target_depth: SampleFormat) 
 
 pub struct Resampler {
     resampler: FftFixedIn<f32>,
+    duration: u64,
 }
 
 impl Resampler {
     pub fn new(orig_rate: u32, target_rate: u32, duration: u64, channels: u16) -> Self {
+        println!("resampling from {:?} to {:?}", orig_rate, target_rate);
+
         let resampler = FftFixedIn::<f32>::new(
             orig_rate as usize,
             target_rate as usize,
@@ -177,7 +180,10 @@ impl Resampler {
         )
         .unwrap();
 
-        Resampler { resampler }
+        Resampler {
+            resampler,
+            duration,
+        }
     }
 
     pub fn convert_formats(
@@ -186,11 +192,8 @@ impl Resampler {
         target_format: FormatInfo,
     ) -> PlaybackFrame {
         if target_format.sample_rate != frame.rate {
-            println!(
-                "resampling from {:?} to {:?}",
-                frame.rate, target_format.sample_rate
-            );
             let source: Vec<Vec<f32>> = convert_samples(frame.samples);
+
             let resampled = self
                 .resampler
                 .process(&source, None)

@@ -58,6 +58,7 @@ fn main() {
 
     let first_samples = provider.read_samples().expect("unable to read samples");
     let duration = provider.duration_frames().expect("can't get duration");
+    println!("frame duration: {:?}", duration);
     let mut resampler = Resampler::new(
         first_samples.rate,
         device_format.sample_rate,
@@ -71,8 +72,9 @@ fn main() {
     stream.submit_frame(converted);
 
     loop {
-        let first_samples = provider.read_samples().expect("unable to read samples");
-        let converted = resampler.convert_formats(first_samples, device_format.clone());
+        let samples = provider.read_samples().expect("unable to read samples");
+
+        let converted = resampler.convert_formats(samples, device_format.clone());
         stream.submit_frame(converted);
     }
 }

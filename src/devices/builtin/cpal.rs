@@ -115,10 +115,7 @@ fn cpal_config_from_info(format: &FormatInfo) -> Result<cpal::StreamConfig, ()> 
         Err(())
     } else {
         Ok(cpal::StreamConfig {
-            channels: match format.channels {
-                ChannelSpec::Count(c) => c,
-                _ => 2, // should be impossible
-            },
+            channels: 2,
             sample_rate: cpal::SampleRate(format.sample_rate),
             buffer_size: cpal::BufferSize::Default,
         })
@@ -127,7 +124,7 @@ fn cpal_config_from_info(format: &FormatInfo) -> Result<cpal::StreamConfig, ()> 
 
 fn interleave<T>(samples: Vec<Vec<T>>) -> Vec<T>
 where
-    T: Copy,
+    T: Copy + PartialEq,
 {
     if samples.is_empty() {
         return vec![];
@@ -137,7 +134,7 @@ where
     let mut result = vec![];
 
     for i in 0..(samples.len() * samples[0].len()) {
-        result.push(samples[length - (i % length) - 1][i / length]);
+        result.push(samples[i % length][i / length]);
     }
 
     result
@@ -276,9 +273,7 @@ where
 {
     fn submit_frame(&mut self, frame: PlaybackFrame) -> Result<(), SubmissionError> {
         let samples = T::inner(frame.samples);
-        println!("{:?}", samples[0].len());
         let interleaved = interleave(samples);
-        println!("{:?}", interleaved.len());
         let mut slice: &[T] = &interleaved;
 
         while let Some(written) = self.ring_buf.write_blocking(slice) {

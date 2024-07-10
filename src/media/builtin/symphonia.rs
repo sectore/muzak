@@ -257,7 +257,7 @@ impl PlaybackProvider for SymphoniaProvider {
 
                                     for i in 0..channel_count {
                                         samples.push(Vec::new());
-                                        for sample in v.chan(0) {
+                                        for sample in v.chan(i) {
                                             samples[i].push(*sample);
                                         }
                                     }
@@ -272,7 +272,7 @@ impl PlaybackProvider for SymphoniaProvider {
 
                                     for i in 0..channel_count {
                                         samples.push(Vec::new());
-                                        for sample in v.chan(0) {
+                                        for sample in v.chan(i) {
                                             samples[i].push(*sample);
                                         }
                                     }
@@ -287,7 +287,7 @@ impl PlaybackProvider for SymphoniaProvider {
 
                                     for i in 0..channel_count {
                                         samples.push(Vec::new());
-                                        for sample in v.chan(0) {
+                                        for sample in v.chan(i) {
                                             samples[i].push(
                                                 u24::try_from(sample.0)
                                                     .expect("24bit number is not 24bits long"),
@@ -305,7 +305,7 @@ impl PlaybackProvider for SymphoniaProvider {
 
                                     for i in 0..channel_count {
                                         samples.push(Vec::new());
-                                        for sample in v.chan(0) {
+                                        for sample in v.chan(i) {
                                             samples[i].push(*sample);
                                         }
                                     }
@@ -320,7 +320,7 @@ impl PlaybackProvider for SymphoniaProvider {
 
                                     for i in 0..channel_count {
                                         samples.push(Vec::new());
-                                        for sample in v.chan(0) {
+                                        for sample in v.chan(i) {
                                             samples[i].push(*sample);
                                         }
                                     }
@@ -335,7 +335,7 @@ impl PlaybackProvider for SymphoniaProvider {
 
                                     for i in 0..channel_count {
                                         samples.push(Vec::new());
-                                        for sample in v.chan(0) {
+                                        for sample in v.chan(i) {
                                             samples[i].push(*sample);
                                         }
                                     }
@@ -350,7 +350,7 @@ impl PlaybackProvider for SymphoniaProvider {
 
                                     for i in 0..channel_count {
                                         samples.push(Vec::new());
-                                        for sample in v.chan(0) {
+                                        for sample in v.chan(i) {
                                             samples[i].push(
                                                 i24::try_from(sample.0)
                                                     .expect("24bit number is not 24bits long"),
@@ -368,7 +368,7 @@ impl PlaybackProvider for SymphoniaProvider {
 
                                     for i in 0..channel_count {
                                         samples.push(Vec::new());
-                                        for sample in v.chan(0) {
+                                        for sample in v.chan(i) {
                                             samples[i].push(*sample);
                                         }
                                     }
@@ -383,7 +383,7 @@ impl PlaybackProvider for SymphoniaProvider {
 
                                     for i in 0..channel_count {
                                         samples.push(Vec::new());
-                                        for sample in v.chan(0) {
+                                        for sample in v.chan(i) {
                                             samples[i].push(*sample);
                                         }
                                     }
@@ -398,7 +398,7 @@ impl PlaybackProvider for SymphoniaProvider {
 
                                     for i in 0..channel_count {
                                         samples.push(Vec::new());
-                                        for sample in v.chan(0) {
+                                        for sample in v.chan(i) {
                                             samples[i].push(*sample);
                                         }
                                     }
