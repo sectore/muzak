@@ -1,6 +1,8 @@
 use std::{
     convert,
     io::{Read, Write},
+    thread::sleep,
+    time::Duration,
 };
 
 use devices::{
@@ -72,9 +74,22 @@ fn main() {
     stream.submit_frame(converted);
 
     loop {
-        let samples = provider.read_samples().expect("unable to read samples");
+        let samples = match provider.read_samples() {
+            Ok(v) => v,
+            Err(err) => match err {
+                media::errors::PlaybackReadError::NothingOpen => panic!("nothing open"),
+                media::errors::PlaybackReadError::NeverStarted => panic!("playback never started"),
+                media::errors::PlaybackReadError::EOF => break,
+                media::errors::PlaybackReadError::Unknown => panic!("unknown error"),
+                media::errors::PlaybackReadError::DecodeFatal => panic!("fatal decode error"),
+            },
+        };
 
         let converted = resampler.convert_formats(samples, device_format.clone());
         stream.submit_frame(converted);
     }
+
+    println!("end of file reached, waiting for 1 second");
+
+    sleep(Duration::from_secs(1));
 }

@@ -192,12 +192,18 @@ impl Resampler {
         target_format: FormatInfo,
     ) -> PlaybackFrame {
         if target_format.sample_rate != frame.rate {
-            let source: Vec<Vec<f32>> = convert_samples(frame.samples);
+            let mut source: Vec<Vec<f32>> = convert_samples(frame.samples);
 
-            let resampled = self
-                .resampler
-                .process(&source, None)
-                .expect("resampler error");
+            let resampled = if source[0].len() < self.duration as usize {
+                println!("end of stream reached, using process_partial");
+                self.resampler
+                    .process_partial(Some(&source), None)
+                    .expect("resampler error")
+            } else {
+                self.resampler
+                    .process(&source, None)
+                    .expect("resampler error")
+            };
 
             match_bit_depth(
                 PlaybackFrame {
