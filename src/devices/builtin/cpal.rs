@@ -13,7 +13,7 @@ use crate::{
         format::{BufferSize, ChannelSpec, FormatInfo, SampleFormat, SupportedFormat},
         traits::{Device, DeviceProvider, OutputStream},
     },
-    media::playback::{GetInnerSamples, PlaybackFrame},
+    media::playback::{GetInnerSamples, Mute, PlaybackFrame},
 };
 use cpal::{
     traits::{DeviceTrait, HostTrait},
@@ -141,7 +141,7 @@ where
 }
 
 impl CpalDevice {
-    fn create_stream<T: SizedSample + GetInnerSamples + Default + Send + Sized + 'static>(
+    fn create_stream<T: SizedSample + GetInnerSamples + Default + Send + Sized + 'static + Mute>(
         &mut self,
         format: FormatInfo,
     ) -> Result<Box<dyn OutputStream>, OpenError> {
@@ -163,7 +163,9 @@ impl CpalDevice {
             .build_output_stream(
                 &config,
                 move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
-                    cons.read(data).unwrap_or(0);
+                    let written = cons.read(data).unwrap_or(0);
+
+                    data[written..].iter_mut().for_each(|v| *v = T::muted())
                 },
                 move |err| {},
                 None,
