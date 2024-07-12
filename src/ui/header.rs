@@ -171,3 +171,10 @@ impl RenderOnce for WindowControls {
         div().w(px(65.0)).h_full()
     }
 }
+
+#[cfg(not(target_os = "macos"))]
+impl RenderOnce for WindowControls {
+    fn render(self, cx: &mut WindowContext) -> impl IntoElement {
+        div().w(px(65.0)).h_full()
+    }
+}
