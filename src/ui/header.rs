@@ -6,11 +6,15 @@ use crate::media::metadata::Metadata;
 
 use super::models::Models;
 
-pub struct Header {}
+pub struct Header {
+    info_section: View<InfoSection>,
+}
 
 impl Header {
     pub fn new<V: 'static>(cx: &mut ViewContext<V>) -> View<Self> {
-        cx.new_view(|cx| Self {})
+        cx.new_view(|cx| Self {
+            info_section: InfoSection::new(cx),
+        })
     }
 }
 
@@ -24,7 +28,7 @@ impl Render for Header {
             .on_mouse_move(|_e, cx| cx.refresh())
             .on_mouse_down(MouseButton::Left, move |e, cx| cx.start_window_move())
             .flex()
-            .child(InfoSection::new(cx))
+            .child(self.info_section.clone())
             .child(PlaybackSection::default())
     }
 }
@@ -40,14 +44,13 @@ impl Render for Header {
             .on_mouse_down(MouseButton::Left, move |e, cx| cx.start_window_move())
             .flex()
             .child(WindowControls {})
-            .child(InfoSection::new(cx))
+            .child(self.info_section.clone())
             .child(PlaybackSection::default())
     }
 }
 
 pub struct InfoSection {
     metadata: Model<Metadata>,
-    metadata_actual: Metadata,
 }
 
 impl InfoSection {
@@ -55,9 +58,14 @@ impl InfoSection {
         cx.new_view(|cx| {
             let metadata_model = cx.global::<Models>().metadata.clone();
 
+            cx.observe(&metadata_model, |this, m, cx| {
+                println!("observed");
+                cx.notify();
+            })
+            .detach();
+
             Self {
                 metadata: metadata_model,
-                metadata_actual: Metadata::default(),
             }
         })
     }
@@ -65,13 +73,8 @@ impl InfoSection {
 
 impl Render for InfoSection {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        cx.observe(&self.metadata, |this, m, cx| {
-            this.metadata_actual = m.read(cx).clone();
-            cx.notify();
-        })
-        .detach();
-
         let model_clone = self.metadata.clone();
+        let metadata = self.metadata.read(cx);
 
         div()
             .id("info-section")
@@ -81,14 +84,6 @@ impl Render for InfoSection {
             .child(
                 div()
                     .id("album-art")
-                    .on_mouse_down(MouseButton::Left, move |_, cx| {
-                        model_clone.update(cx, |model, cx| {
-                            cx.emit(Metadata {
-                                name: Some("IT WORKS".into()),
-                                ..Default::default()
-                            });
-                        })
-                    })
                     .rounded(px(4.0))
                     .bg(rgb(0x4b5563))
                     .shadow_sm()
@@ -103,21 +98,11 @@ impl Render for InfoSection {
                     .text_size(px(15.0))
                     .gap_1()
                     .child(
-                        div().font_weight(FontWeight::EXTRA_BOLD).child(
-                            self.metadata_actual
-                                .artist
-                                .clone()
-                                .unwrap_or("Unknown Artist".into()),
-                        ),
+                        div()
+                            .font_weight(FontWeight::EXTRA_BOLD)
+                            .child(metadata.artist.clone().unwrap_or("Unknown Artist".into())),
                     )
-                    .child(
-                        div().child(
-                            self.metadata_actual
-                                .name
-                                .clone()
-                                .unwrap_or("Unknown Track".into()),
-                        ),
-                    ),
+                    .child(div().child(metadata.name.clone().unwrap_or("Unknown Track".into()))),
             )
     }
 }

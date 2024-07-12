@@ -7,7 +7,9 @@ use super::{
     arguments::parse_args_and_prepare, assets::Assets, header::Header, models::build_models,
 };
 
-struct WindowShadow {}
+struct WindowShadow {
+    pub header: View<Header>,
+}
 
 impl Render for WindowShadow {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
@@ -134,7 +136,7 @@ impl Render for WindowShadow {
                     .size_full()
                     .flex()
                     .flex_col()
-                    .child(Header::new(cx)),
+                    .child(self.header.clone()),
             )
     }
 }
@@ -191,7 +193,7 @@ pub fn run() {
 
         let mut interface: GPUIPlaybackInterface = PlaybackThread::start();
 
-        //interface.start_broadcast_thread(cx);
+        interface.start_broadcast_thread(cx);
         parse_args_and_prepare(&interface);
 
         cx.set_global(interface);
@@ -217,7 +219,9 @@ pub fn run() {
                         cx.refresh();
                     })
                     .detach();
-                    WindowShadow {}
+                    WindowShadow {
+                        header: Header::new(cx),
+                    }
                 })
             },
         )
