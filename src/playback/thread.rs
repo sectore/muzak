@@ -33,7 +33,7 @@ pub struct PlaybackThread {
     media_provider_index: HashMap<&'static str, Vec<&'static str>>,
     device_provider_index: Vec<&'static str>,
     commands_rx: Receiver<PlaybackCommand>,
-    events_tx: Sender<PlaybackCommand>,
+    events_tx: Sender<PlaybackEvent>,
     media_provider: Option<Box<dyn MediaProvider>>,
     device_provider: Option<Box<dyn DeviceProvider>>,
     device: Option<Box<dyn Device>>,
@@ -46,7 +46,7 @@ pub struct PlaybackThread {
 }
 
 impl PlaybackThread {
-    pub fn start() -> PlaybackInterface {
+    pub fn start<T: PlaybackInterface>() -> T {
         let (commands_tx, commands_rx) = std::sync::mpsc::channel();
         let (events_tx, events_rx) = std::sync::mpsc::channel();
         let mut media_provider_index: HashMap<&'static str, Vec<&'static str>> = HashMap::new();
@@ -75,10 +75,7 @@ impl PlaybackThread {
             thread.run();
         });
 
-        PlaybackInterface {
-            commands_tx,
-            events_rx,
-        }
+        T::new(commands_tx, events_rx)
     }
 
     pub fn run(&mut self) {
@@ -102,10 +99,25 @@ impl PlaybackThread {
     pub fn main_loop(&mut self) {
         self.command_intake();
 
-        if PlaybackState::Playing == self.state {
+        if self.state == PlaybackState::Playing {
             self.play_audio();
         } else {
             sleep(std::time::Duration::from_millis(50));
+        }
+
+        self.broadcast_events();
+    }
+
+    pub fn broadcast_events(&mut self) {
+        if let Some(provider) = &mut self.media_provider {
+            if provider.metadata_updated() {
+                println!("Metadata updated");
+                // TODO: proper error handling
+                let metadata = provider.read_metadata().expect("failed to get metadata");
+                self.events_tx
+                    .send(PlaybackEvent::MetadataUpdate(Box::new(metadata.clone())))
+                    .expect("unable to send event");
+            }
         }
     }
 
@@ -134,6 +146,10 @@ impl PlaybackThread {
 
         if self.state == PlaybackState::Playing {
             self.state = PlaybackState::Paused;
+
+            self.events_tx
+                .send(PlaybackEvent::StateChanged(PlaybackState::Paused))
+                .expect("unable to send event");
         }
     }
 
@@ -168,14 +184,31 @@ impl PlaybackThread {
             provider.open(src, None).expect("unable to open file");
             provider.start_playback().expect("unable to start playback");
         }
+
+        self.state = PlaybackState::Playing;
+        self.events_tx
+            .send(PlaybackEvent::SongChanged(path.clone(), 0 as f64))
+            .expect("unable to send event");
+        self.events_tx
+            .send(PlaybackEvent::StateChanged(PlaybackState::Playing))
+            .expect("unable to send event");
     }
 
     pub fn queue(&mut self, path: &String) {
+        let pre_len = self.queue.len();
         self.queue.push(path.clone());
 
         if self.state == PlaybackState::Stopped {
             self.open(path);
+            self.queue_next = pre_len + 1;
+            self.events_tx
+                .send(PlaybackEvent::QueuePositionChanged(pre_len))
+                .expect("unable to send event");
         }
+
+        self.events_tx
+            .send(PlaybackEvent::QueueUpdated(self.queue.clone()))
+            .expect("unable to send event");
     }
 
     pub fn queue_list(&mut self, mut paths: Vec<String>) {

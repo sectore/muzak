@@ -1,5 +1,7 @@
 use crate::media::metadata::Metadata;
 
+use super::thread::PlaybackState;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum PlaybackCommand {
     // Requests that the playback thread begin playback.
@@ -31,13 +33,8 @@ pub enum PlaybackCommand {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PlaybackEvent {
-    // Indicates that playback has ended. This means that the current file has finished playing
-    // and the queue is empty.
-    Ended,
-    // Indicates that playback has started.
-    Playing,
-    // Indicates that playback has been paused.
-    Paused,
+    // Indicates that the playback state has changed.
+    StateChanged(PlaybackState),
     // Indicates that the current file has changed. The string is the path to the new file, and the
     // f64 is the duration of the new file in milliseconds.
     SongChanged(String, f64),

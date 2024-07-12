@@ -2,12 +2,21 @@ use std::process::Child;
 
 use gpui::*;
 
-#[derive(IntoElement)]
+use crate::media::metadata::Metadata;
+
+use super::models::Models;
+
 pub struct Header {}
 
+impl Header {
+    pub fn new<V: 'static>(cx: &mut ViewContext<V>) -> View<Self> {
+        cx.new_view(|cx| Self {})
+    }
+}
+
 #[cfg(not(target_os = "macos"))]
-impl RenderOnce for Header {
-    fn render(self, cx: &mut WindowContext) -> impl IntoElement {
+impl Render for Header {
+    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         div()
             .w_full()
             .h(px(60.0))
@@ -15,14 +24,14 @@ impl RenderOnce for Header {
             .on_mouse_move(|_e, cx| cx.refresh())
             .on_mouse_down(MouseButton::Left, move |e, cx| cx.start_window_move())
             .flex()
-            .child(InfoSection {})
+            .child(InfoSection::new(cx))
             .child(PlaybackSection::default())
     }
 }
 
 #[cfg(target_os = "macos")]
-impl RenderOnce for Header {
-    fn render(self, cx: &mut WindowContext) -> impl IntoElement {
+impl Render for Header {
+    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         div()
             .w_full()
             .h(px(60.0))
@@ -31,22 +40,55 @@ impl RenderOnce for Header {
             .on_mouse_down(MouseButton::Left, move |e, cx| cx.start_window_move())
             .flex()
             .child(WindowControls {})
-            .child(InfoSection {})
+            .child(InfoSection::new(cx))
             .child(PlaybackSection::default())
     }
 }
 
-#[derive(IntoElement)]
-pub struct InfoSection {}
+pub struct InfoSection {
+    metadata: Model<Metadata>,
+    metadata_actual: Metadata,
+}
 
-impl RenderOnce for InfoSection {
-    fn render(self, cx: &mut WindowContext) -> impl IntoElement {
+impl InfoSection {
+    pub fn new<V: 'static>(cx: &mut ViewContext<V>) -> View<Self> {
+        cx.new_view(|cx| {
+            let metadata_model = cx.global::<Models>().metadata.clone();
+
+            Self {
+                metadata: metadata_model,
+                metadata_actual: Metadata::default(),
+            }
+        })
+    }
+}
+
+impl Render for InfoSection {
+    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+        cx.observe(&self.metadata, |this, m, cx| {
+            this.metadata_actual = m.read(cx).clone();
+            cx.notify();
+        })
+        .detach();
+
+        let model_clone = self.metadata.clone();
+
         div()
+            .id("info-section")
             .m(px(12.0))
             .gap(px(10.0))
             .flex()
             .child(
                 div()
+                    .id("album-art")
+                    .on_mouse_down(MouseButton::Left, move |_, cx| {
+                        model_clone.update(cx, |model, cx| {
+                            cx.emit(Metadata {
+                                name: Some("IT WORKS".into()),
+                                ..Default::default()
+                            });
+                        })
+                    })
                     .rounded(px(4.0))
                     .bg(rgb(0x4b5563))
                     .shadow_sm()
@@ -61,11 +103,21 @@ impl RenderOnce for InfoSection {
                     .text_size(px(15.0))
                     .gap_1()
                     .child(
-                        div()
-                            .font_weight(FontWeight::EXTRA_BOLD)
-                            .child(format!("{}", "Artist Name")),
+                        div().font_weight(FontWeight::EXTRA_BOLD).child(
+                            self.metadata_actual
+                                .artist
+                                .clone()
+                                .unwrap_or("Unknown Artist".into()),
+                        ),
                     )
-                    .child(div().child(format!("{}", "Track Name"))),
+                    .child(
+                        div().child(
+                            self.metadata_actual
+                                .name
+                                .clone()
+                                .unwrap_or("Unknown Track".into()),
+                        ),
+                    ),
             )
     }
 }

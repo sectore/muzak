@@ -1,7 +1,11 @@
 use gpui::*;
 use prelude::FluentBuilder;
 
-use super::{assets::Assets, header::Header};
+use crate::playback::{interface::GPUIPlaybackInterface, thread::PlaybackThread};
+
+use super::{
+    arguments::parse_args_and_prepare, assets::Assets, header::Header, models::build_models,
+};
 
 struct WindowShadow {}
 
@@ -130,7 +134,7 @@ impl Render for WindowShadow {
                     .size_full()
                     .flex()
                     .flex_col()
-                    .child(Header {}),
+                    .child(Header::new(cx)),
             )
     }
 }
@@ -182,6 +186,15 @@ pub fn run() {
             name: "set_menus",
             items: vec![MenuItem::action("Quit", Quit)],
         }]);
+
+        build_models(cx);
+
+        let mut interface: GPUIPlaybackInterface = PlaybackThread::start();
+
+        //interface.start_broadcast_thread(cx);
+        parse_args_and_prepare(&interface);
+
+        cx.set_global(interface);
 
         cx.open_window(
             WindowOptions {
