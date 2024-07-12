@@ -5,6 +5,7 @@ use gpui::*;
 #[derive(IntoElement)]
 pub struct Header {}
 
+#[cfg(not(target_os = "macos"))]
 impl RenderOnce for Header {
     fn render(self, cx: &mut WindowContext) -> impl IntoElement {
         div()
@@ -14,6 +15,22 @@ impl RenderOnce for Header {
             .on_mouse_move(|_e, cx| cx.refresh())
             .on_mouse_down(MouseButton::Left, move |e, cx| cx.start_window_move())
             .flex()
+            .child(InfoSection {})
+            .child(PlaybackSection::default())
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl RenderOnce for Header {
+    fn render(self, cx: &mut WindowContext) -> impl IntoElement {
+        div()
+            .w_full()
+            .h(px(60.0))
+            .bg(rgb(0x111827))
+            .on_mouse_move(|_e, cx| cx.refresh())
+            .on_mouse_down(MouseButton::Left, move |e, cx| cx.start_window_move())
+            .flex()
+            .child(WindowControls {})
             .child(InfoSection {})
             .child(PlaybackSection::default())
     }
@@ -90,5 +107,15 @@ impl RenderOnce for PlaybackSection {
                     .rounded(px(15.0))
                     .bg(rgb(0x1f2937)),
             )
+    }
+}
+
+#[derive(IntoElement)]
+pub struct WindowControls {}
+
+#[cfg(target_os = "macos")]
+impl RenderOnce for WindowControls {
+    fn render(self, cx: &mut WindowContext) -> impl IntoElement {
+        div().w(px(65.0)).h_full()
     }
 }

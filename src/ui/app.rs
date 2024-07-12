@@ -5,14 +5,6 @@ use super::{assets::Assets, header::Header};
 
 struct WindowShadow {}
 
-/*
-Things to do:
-1. We need a way of calculating which edge or corner the mouse is on,
-    and then dispatch on that
-2. We need to improve the shadow rendering significantly
-3. We need to implement the techniques in here in Zed
-*/
-
 impl Render for WindowShadow {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let decorations = cx.window_decorations();
@@ -183,11 +175,27 @@ pub fn run() {
     App::new().with_assets(Assets).run(|cx: &mut AppContext| {
         let bounds = Bounds::centered(None, size(px(1024.0), px(768.0)), cx);
         find_fonts(cx).expect("unable to load fonts");
+
+        cx.activate(true);
+        cx.on_action(quit);
+        cx.set_menus(vec![Menu {
+            name: "set_menus",
+            items: vec![MenuItem::action("Quit", Quit)],
+        }]);
+
         cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
                 window_background: WindowBackgroundAppearance::Opaque,
                 window_decorations: Some(WindowDecorations::Client),
+                titlebar: Some(TitlebarOptions {
+                    title: Some(SharedString::from("Muzak")),
+                    appears_transparent: true,
+                    traffic_light_position: Some(Point {
+                        x: px(12.0),
+                        y: px(12.0),
+                    }),
+                }),
                 ..Default::default()
             },
             |cx| {
@@ -202,4 +210,13 @@ pub fn run() {
         )
         .unwrap();
     });
+}
+
+// Associate actions using the `actions!` macro (or `impl_actions!` macro)
+actions!(set_menus, [Quit]);
+
+// Define the quit function that is registered with the AppContext
+fn quit(_: &Quit, cx: &mut AppContext) {
+    println!("Gracefully quitting the application . . .");
+    cx.quit();
 }

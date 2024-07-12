@@ -34,8 +34,7 @@ fn main() {
     crate::ui::app::run();
 }
 
-/*
-fn main() {
+/*fn main() {
     let args: Vec<String> = std::env::args().collect();
     let path = args.get(1).expect("file path not provided");
 
