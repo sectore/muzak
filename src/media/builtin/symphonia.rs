@@ -21,7 +21,7 @@ use crate::media::{
     },
     metadata::Metadata,
     playback::{PlaybackFrame, Samples},
-    traits::{MediaProvider, MetadataProvider, PlaybackProvider},
+    traits::{MediaPlugin, MediaProvider},
 };
 
 #[derive(Default)]
@@ -32,16 +32,6 @@ pub struct SymphoniaProvider {
     current_duration: u64,
     decoder: Option<Box<dyn Decoder>>,
 }
-
-const SYMPHONIA_SUPPORTED_FILETYPES: [&'static str; 7] = [
-    "audio/ogg",
-    "audio/aac",
-    "audio/x-flac",
-    "audio/x-wav",
-    "audio/mpeg",
-    "audio/m4a",
-    "audio/x-aiff",
-];
 
 impl SymphoniaProvider {
     fn break_metadata(&mut self, tags: &[Tag]) {
@@ -136,14 +126,6 @@ impl SymphoniaProvider {
 }
 
 impl MediaProvider for SymphoniaProvider {
-    fn get_playback_provider(&mut self) -> Option<&mut impl PlaybackProvider> {
-        Some(self)
-    }
-
-    fn get_metadata_provider(&mut self) -> Option<&mut impl MetadataProvider> {
-        Some(self)
-    }
-
     fn open(&mut self, file: File, ext: Option<String>) -> Result<(), OpenError> {
         let mss = MediaSourceStream::new(Box::new(file), Default::default());
         let meta_opts: MetadataOptions = Default::default();
@@ -178,20 +160,6 @@ impl MediaProvider for SymphoniaProvider {
         Ok(())
     }
 
-    fn get_name(&self) -> &'static str {
-        "Symphonia"
-    }
-
-    fn get_version(&self) -> &'static str {
-        "0"
-    }
-
-    fn get_supported_mimetypes(&self) -> &'static [&'static str] {
-        &SYMPHONIA_SUPPORTED_FILETYPES
-    }
-}
-
-impl PlaybackProvider for SymphoniaProvider {
     fn start_playback(&mut self) -> Result<(), PlaybackStartError> {
         if let Some(format) = &self.format {
             let track = format
@@ -435,9 +403,7 @@ impl PlaybackProvider for SymphoniaProvider {
             Ok(self.current_duration)
         }
     }
-}
 
-impl MetadataProvider for SymphoniaProvider {
     fn read_metadata(&mut self) -> Result<&Metadata, MetadataError> {
         if self.format.is_some() {
             Ok(&self.current_metadata)
@@ -445,4 +411,20 @@ impl MetadataProvider for SymphoniaProvider {
             Err(MetadataError::NothingOpen)
         }
     }
+}
+
+impl MediaPlugin for SymphoniaProvider {
+    const NAME: &'static str = "Symphonia";
+
+    const VERSION: &'static str = "0.1.0";
+
+    const SUPPORTED_MIMETYPES: &'static [&'static str] = &[
+        "audio/ogg",
+        "audio/aac",
+        "audio/x-flac",
+        "audio/x-wav",
+        "audio/mpeg",
+        "audio/m4a",
+        "audio/x-aiff",
+    ];
 }

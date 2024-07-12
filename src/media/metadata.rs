@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Metadata {
     pub name: Option<String>,
     pub artist: Option<String>,

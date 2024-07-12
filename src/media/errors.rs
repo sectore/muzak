@@ -38,6 +38,7 @@ pub enum PlaybackReadError {
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum MetadataError {
     NothingOpen,
+    OperationUnsupported,
     Unknown,
 }
 

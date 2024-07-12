@@ -39,31 +39,31 @@ impl DeviceProvider for CpalProvider {
         Ok(())
     }
 
-    fn get_devices(&mut self) -> Result<Vec<impl Device>, ListError> {
+    fn get_devices(&mut self) -> Result<Vec<Box<dyn Device>>, ListError> {
         Ok(self
             .host
             .devices()
             .map_err(|_| ListError::Unknown)? // TODO: Requires platform-specific error handling
             .into_iter()
-            .map(|dev| CpalDevice::from(dev))
+            .map(|dev| Box::new(CpalDevice::from(dev)) as Box<dyn Device>)
             .collect())
     }
 
-    fn get_default_device(&mut self) -> Result<impl Device, FindError> {
+    fn get_default_device(&mut self) -> Result<Box<dyn Device>, FindError> {
         self.host
             .default_output_device()
             .ok_or(FindError::DeviceDoesNotExist)
-            .map(|dev| CpalDevice::from(dev))
+            .map(|dev| Box::new(CpalDevice::from(dev)) as Box<dyn Device>)
     }
 
-    fn get_device_by_uid(&mut self, id: &String) -> Result<impl Device, FindError> {
+    fn get_device_by_uid(&mut self, id: &String) -> Result<Box<dyn Device>, FindError> {
         self.host
             .devices()
             .map_err(|_| FindError::Unknown)? // TODO: Requires platform-specific error handling
             .into_iter()
             .find(|dev| dev.name().unwrap_or("NULL".into()) == *id)
             .ok_or(FindError::DeviceDoesNotExist)
-            .map(|dev| CpalDevice::from(dev))
+            .map(|dev| Box::new(CpalDevice::from(dev)) as Box<dyn Device>)
     }
 }
 

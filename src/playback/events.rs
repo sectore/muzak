@@ -1,0 +1,54 @@
+use crate::media::metadata::Metadata;
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum PlaybackCommand {
+    // Requests that the playback thread begin playback.
+    Play,
+    // Requests that the playback thread pause playback.
+    Pause,
+    // Requests that the playback thread open the specified file for immediate playback.
+    Open(String),
+    // Requests that the playback thread queue the specified file for playback after the current
+    // file. If there is no current file, the specified file will be played immediately.
+    Queue(String),
+    // Requests that the playback thread queue a list of files for playback after the current file.
+    // If there is no current file, the first file in the list will be played immediately.
+    QueueList(Vec<String>),
+    // Requests that the playback thread skip to the next file in the queue.
+    Next,
+    // Requests that the playback thread skip to the previous file in the queue.
+    // If the current file is more than 5 seconds in, it will be restarted.
+    Previous,
+    // Requests that the playback thread clear the queue.
+    ClearQueue,
+    // Jumps to the specified position in the queue.
+    Jump(usize),
+    // Requests that the playback thread seek to the specified position in the current file.
+    Seek(f64),
+    // Requests that the playback thread set the volume to the specified level.
+    SetVolume(u8),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum PlaybackEvent {
+    // Indicates that playback has ended. This means that the current file has finished playing
+    // and the queue is empty.
+    Ended,
+    // Indicates that playback has started.
+    Playing,
+    // Indicates that playback has been paused.
+    Paused,
+    // Indicates that the current file has changed. The string is the path to the new file, and the
+    // f64 is the duration of the new file in milliseconds.
+    SongChanged(String, f64),
+    // Indicates that the queue has been updated. The vector is the new queue.
+    QueueUpdated(Vec<String>),
+    // Indicates that the position in the queue has changed. The usize is the new position.
+    QueuePositionChanged(usize),
+    // Indicates that the MediaProvider has provided new metadata to be consumed by the user
+    // interface. The Metadata is boxed to avoid enum size bloat.
+    MetadataUpdate(Box<Metadata>),
+    // Indicates that the position in the current file has changed. The f64 is the new position,
+    // in milliseconds.
+    PositionChanged(f64),
+}

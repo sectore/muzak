@@ -9,37 +9,19 @@ use super::{
     playback::PlaybackFrame,
 };
 
+pub trait MediaPlugin: MediaProvider {
+    const NAME: &'static str;
+    const VERSION: &'static str;
+    const SUPPORTED_MIMETYPES: &'static [&'static str];
+}
+
 pub trait MediaProvider {
-    // Plugin Functionality
-
-    /// Upgrades a Provider reference to a PlaybackProvider reference, if the Provider supports
-    /// playback.
-    fn get_playback_provider(&mut self) -> Option<&mut impl PlaybackProvider>;
-
-    /// Upgrades a Provider reference to a MetadataProvider reference, if the Provider supports
-    /// metadata retrival.
-    fn get_metadata_provider(&mut self) -> Option<&mut impl MetadataProvider>;
-
     /// Requests the Provider open a file.
     fn open(&mut self, file: File, ext: Option<String>) -> Result<(), OpenError>;
 
     /// Informs the Provider that the currently opened file is no longer needed.
     fn close(&mut self) -> Result<(), CloseError>;
 
-    // Plugin Metadata
-
-    /// Returns the Provider's name.
-    fn get_name(&self) -> &'static str;
-
-    /// Returns the Provider's version.
-    fn get_version(&self) -> &'static str;
-
-    /// Returns the Provider's supported mimetypes, used for determining whether or not to use a
-    /// Provider for playback of a particular file.
-    fn get_supported_mimetypes(&self) -> &'static [&'static str];
-}
-
-pub trait PlaybackProvider {
     /// Requests the Provider prepare for samples to be read from the file and played to the user.
     fn start_playback(&mut self) -> Result<(), PlaybackStartError>;
 
@@ -49,10 +31,10 @@ pub trait PlaybackProvider {
     /// Requests the Provider provide samples for playback.
     fn read_samples(&mut self) -> Result<PlaybackFrame, PlaybackReadError>;
 
+    /// Requests the provider to provide the duration of a PlaybackFrame in frames (samples). This
+    /// value is no longer valid after stop_playback is called, or the file is closed.
     fn duration_frames(&self) -> Result<u64, DurationError>;
-}
 
-pub trait MetadataProvider {
     /// Requests the Provider retrieve the metatdata for the currently opened file.
     fn read_metadata(&mut self) -> Result<&Metadata, MetadataError>;
 }

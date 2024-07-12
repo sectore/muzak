@@ -8,11 +8,11 @@ use super::{
     format::{FormatInfo, SupportedFormat},
 };
 
-pub trait DeviceProvider: Default {
+pub trait DeviceProvider {
     fn initialize(&mut self) -> Result<(), InitializationError>;
-    fn get_devices(&mut self) -> Result<Vec<impl Device>, ListError>;
-    fn get_default_device(&mut self) -> Result<impl Device, FindError>;
-    fn get_device_by_uid(&mut self, id: &String) -> Result<impl Device, FindError>;
+    fn get_devices(&mut self) -> Result<Vec<Box<dyn Device>>, ListError>;
+    fn get_default_device(&mut self) -> Result<Box<dyn Device>, FindError>;
+    fn get_device_by_uid(&mut self, id: &String) -> Result<Box<dyn Device>, FindError>;
 }
 
 pub trait Device {
