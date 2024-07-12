@@ -1,6 +1,8 @@
-use std::process::Child;
+use std::{process::Child, sync::Arc};
 
 use gpui::*;
+use image::{imageops::blur, Pixel, RgbaImage};
+use prelude::FluentBuilder;
 
 use crate::media::metadata::Metadata;
 
@@ -51,21 +53,25 @@ impl Render for Header {
 
 pub struct InfoSection {
     metadata: Model<Metadata>,
+    albumart: Model<Option<RgbaImage>>,
+    albumart_actual: Option<ImageSource>,
 }
 
 impl InfoSection {
     pub fn new<V: 'static>(cx: &mut ViewContext<V>) -> View<Self> {
         cx.new_view(|cx| {
             let metadata_model = cx.global::<Models>().metadata.clone();
+            let albumart_model = cx.global::<Models>().albumart.clone();
 
             cx.observe(&metadata_model, |this, m, cx| {
-                println!("observed");
                 cx.notify();
             })
             .detach();
 
             Self {
                 metadata: metadata_model,
+                albumart: albumart_model,
+                albumart_actual: None,
             }
         })
     }
@@ -73,7 +79,21 @@ impl InfoSection {
 
 impl Render for InfoSection {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let model_clone = self.metadata.clone();
+        cx.observe(&self.albumart, |this, m, cx| {
+            let mut image = m.read(cx).clone();
+            // FIXME: GPUI uses BGR instead of RGB for some reason, this is a hack to get around it
+            image.as_mut().map(|v| {
+                v.pixels_mut().for_each(|v| {
+                    let slice = v.channels();
+                    *v = *image::Rgba::from_slice(&[slice[2], slice[1], slice[0], slice[3]]);
+                });
+            });
+
+            this.albumart_actual = image.map(|v| ImageSource::Data(Arc::new(ImageData::new(v))));
+            cx.notify()
+        })
+        .detach();
+
         let metadata = self.metadata.read(cx);
 
         div()
@@ -88,7 +108,15 @@ impl Render for InfoSection {
                     .bg(rgb(0x4b5563))
                     .shadow_sm()
                     .w(px(36.0))
-                    .h(px(36.0)),
+                    .h(px(36.0))
+                    .when(self.albumart_actual.is_some(), |div| {
+                        div.child(
+                            img(self.albumart_actual.clone().unwrap())
+                                .w(px(36.0))
+                                .h(px(36.0))
+                                .rounded(px(4.0)),
+                        )
+                    }),
             )
             .child(
                 div()

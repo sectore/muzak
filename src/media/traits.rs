@@ -1,5 +1,7 @@
 use std::fs::File;
 
+use image::RgbaImage;
+
 use super::{
     errors::{
         CloseError, DurationError, MetadataError, OpenError, PlaybackReadError, PlaybackStartError,
@@ -41,4 +43,7 @@ pub trait MediaProvider {
     /// Retrieves whether or not there has been a metadata update since the last call to
     /// read_metadata.
     fn metadata_updated(&self) -> bool;
+
+    /// Retrieves the current image from the track's metadata, if there is any.
+    fn read_image(&mut self) -> Result<Option<RgbaImage>, MetadataError>;
 }

@@ -117,6 +117,13 @@ impl PlaybackThread {
                 self.events_tx
                     .send(PlaybackEvent::MetadataUpdate(Box::new(metadata.clone())))
                     .expect("unable to send event");
+
+                let image = provider.read_image().expect("failed to decode image");
+                if let Some(image) = image {
+                    self.events_tx
+                        .send(PlaybackEvent::AlbumArtUpdate(image))
+                        .expect("unable to send event");
+                }
             }
         }
     }

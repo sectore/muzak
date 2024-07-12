@@ -2808,6 +2808,7 @@ dependencies = [
  "cpal",
  "dateparser",
  "gpui",
+ "image",
  "rb",
  "rubato",
  "rust-embed",

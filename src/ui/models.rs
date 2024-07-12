@@ -4,6 +4,7 @@ use std::{
 };
 
 use gpui::{AppContext, Context, EventEmitter, Global, Model};
+use image::RgbaImage;
 
 use crate::media::metadata::Metadata;
 
@@ -12,25 +13,14 @@ impl EventEmitter<Metadata> for Metadata {}
 
 pub struct Models {
     pub metadata: Model<Metadata>,
+    pub albumart: Model<Option<RgbaImage>>,
 }
 
 impl Global for Models {}
 
 pub fn build_models(cx: &mut AppContext) {
     let metadata: Model<Metadata> = cx.new_model(|_| Metadata::default());
+    let albumart: Model<Option<RgbaImage>> = cx.new_model(|_| None);
 
-    cx.subscribe(&metadata, |model, event: &Metadata, cx| {
-        println!(
-            "metadata update on thread {:?}: {:?}",
-            current().name(),
-            event
-        );
-        cx.update_model(&model, |model, cx| {
-            *model = event.clone();
-            cx.notify();
-        })
-    })
-    .detach();
-
-    cx.set_global(Models { metadata });
+    cx.set_global(Models { metadata, albumart });
 }

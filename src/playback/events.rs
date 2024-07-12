@@ -1,3 +1,5 @@
+use image::RgbaImage;
+
 use crate::media::metadata::Metadata;
 
 use super::thread::PlaybackState;
@@ -45,6 +47,9 @@ pub enum PlaybackEvent {
     // Indicates that the MediaProvider has provided new metadata to be consumed by the user
     // interface. The Metadata is boxed to avoid enum size bloat.
     MetadataUpdate(Box<Metadata>),
+    // Indicates that the MediaProvider has provided a new album art image to be consumed by the
+    // user interface.
+    AlbumArtUpdate(RgbaImage),
     // Indicates that the position in the current file has changed. The f64 is the new position,
     // in milliseconds.
     PositionChanged(f64),

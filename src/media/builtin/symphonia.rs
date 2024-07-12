@@ -1,5 +1,6 @@
-use std::fs::File;
+use std::{fs::File, io::Cursor};
 
+use image::RgbaImage;
 use symphonia::{
     core::{
         audio::{AudioBufferRef, Signal},
@@ -7,7 +8,7 @@ use symphonia::{
         errors::Error,
         formats::{FormatOptions, FormatReader},
         io::MediaSourceStream,
-        meta::{MetadataOptions, StandardTagKey, Tag, Value},
+        meta::{MetadataOptions, StandardTagKey, Tag, Value, Visual},
         probe::{Hint, ProbeResult},
     },
     default::get_codecs,
@@ -32,6 +33,7 @@ pub struct SymphoniaProvider {
     current_duration: u64,
     decoder: Option<Box<dyn Decoder>>,
     pending_metadata_update: bool,
+    last_image: Option<Visual>,
 }
 
 impl SymphoniaProvider {
@@ -115,13 +117,20 @@ impl SymphoniaProvider {
 
     fn read_base_metadata(&mut self, probed: &mut ProbeResult) {
         self.current_metadata = Metadata::default();
+        self.last_image = None;
 
         if let Some(metadata) = probed.metadata.get().as_ref().and_then(|m| m.current()) {
             self.break_metadata(metadata.tags());
+            if !metadata.visuals().is_empty() {
+                self.last_image = Some(metadata.visuals()[0].clone());
+            }
         }
 
         if let Some(metadata) = probed.format.metadata().current() {
             self.break_metadata(metadata.tags());
+            if !metadata.visuals().is_empty() {
+                self.last_image = Some(metadata.visuals()[0].clone());
+            }
         }
 
         self.pending_metadata_update = true;
@@ -419,6 +428,23 @@ impl MediaProvider for SymphoniaProvider {
 
     fn metadata_updated(&self) -> bool {
         self.pending_metadata_update
+    }
+
+    fn read_image(&mut self) -> Result<Option<RgbaImage>, MetadataError> {
+        if self.format.is_some() {
+            if let Some(visual) = &self.last_image {
+                let image = image::io::Reader::new(Cursor::new(visual.data.clone()))
+                    .with_guessed_format()
+                    .map_err(|_| MetadataError::Unknown)?
+                    .decode()
+                    .map_err(|_| MetadataError::Unknown)?;
+                Ok(Some(image.into_rgba8()))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Err(MetadataError::NothingOpen)
+        }
     }
 }
 

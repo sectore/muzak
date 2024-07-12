@@ -5,6 +5,7 @@ use std::{
 };
 
 use gpui::{AppContext, Model};
+use image::RgbaImage;
 
 use crate::{
     media::{metadata::Metadata, playback},
@@ -114,6 +115,7 @@ impl GPUIPlaybackInterface {
         std::mem::swap(&mut self.events_rx, &mut events_rx);
 
         let metadata_model: Model<Metadata> = cx.global::<Models>().metadata.clone();
+        let albumart_model: Model<Option<RgbaImage>> = cx.global::<Models>().albumart.clone();
 
         if let Some(events_rx) = events_rx {
             cx.spawn(|mut cx| async move {
@@ -123,11 +125,19 @@ impl GPUIPlaybackInterface {
                             PlaybackEvent::MetadataUpdate(v) => {
                                 metadata_model
                                     .update(&mut cx, |m, cx| {
-                                        cx.emit(*v.clone());
+                                        *m = *v;
+                                        cx.notify()
                                     })
                                     .expect("failed to update metadata");
                             }
-                            PlaybackEvent::PositionChanged(v) => todo!(),
+                            PlaybackEvent::AlbumArtUpdate(v) => {
+                                albumart_model
+                                    .update(&mut cx, |m, cx| {
+                                        *m = Some(v);
+                                        cx.notify()
+                                    })
+                                    .expect("failed to update albumart");
+                            }
                             _ => (),
                         }
                     }
