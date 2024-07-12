@@ -11,6 +11,10 @@ use devices::{
     resample::Resampler,
     traits::{Device, DeviceProvider},
 };
+use gpui::{
+    div, rgb, App, AppContext, IntoElement, ParentElement, Render, SharedString, Styled,
+    ViewContext, VisualContext, WindowOptions,
+};
 use media::{
     builtin::symphonia::SymphoniaProvider,
     playback::UnwrapSample,
@@ -20,7 +24,17 @@ use symphonia::core::{conv, sample};
 
 mod devices;
 mod media;
+mod ui;
 
+struct HelloWorld {
+    text: SharedString,
+}
+
+fn main() {
+    crate::ui::app::run();
+}
+
+/*
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let path = args.get(1).expect("file path not provided");
@@ -93,3 +107,4 @@ fn main() {
 
     sleep(Duration::from_secs(1));
 }
+*/
