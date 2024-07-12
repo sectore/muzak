@@ -37,4 +37,8 @@ pub trait MediaProvider {
 
     /// Requests the Provider retrieve the metatdata for the currently opened file.
     fn read_metadata(&mut self) -> Result<&Metadata, MetadataError>;
+
+    /// Retrieves whether or not there has been a metadata update since the last call to
+    /// read_metadata.
+    fn metadata_updated(&self) -> bool;
 }

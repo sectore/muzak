@@ -31,6 +31,7 @@ pub struct SymphoniaProvider {
     current_track: u32,
     current_duration: u64,
     decoder: Option<Box<dyn Decoder>>,
+    pending_metadata_update: bool,
 }
 
 impl SymphoniaProvider {
@@ -122,6 +123,8 @@ impl SymphoniaProvider {
         if let Some(metadata) = probed.format.metadata().current() {
             self.break_metadata(metadata.tags());
         }
+
+        self.pending_metadata_update = true;
     }
 }
 
@@ -405,11 +408,17 @@ impl MediaProvider for SymphoniaProvider {
     }
 
     fn read_metadata(&mut self) -> Result<&Metadata, MetadataError> {
+        self.pending_metadata_update = false;
+
         if self.format.is_some() {
             Ok(&self.current_metadata)
         } else {
             Err(MetadataError::NothingOpen)
         }
+    }
+
+    fn metadata_updated(&self) -> bool {
+        self.pending_metadata_update
     }
 }
 

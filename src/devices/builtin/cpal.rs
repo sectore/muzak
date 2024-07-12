@@ -44,7 +44,6 @@ impl DeviceProvider for CpalProvider {
             .host
             .devices()
             .map_err(|_| ListError::Unknown)? // TODO: Requires platform-specific error handling
-            .into_iter()
             .map(|dev| Box::new(CpalDevice::from(dev)) as Box<dyn Device>)
             .collect())
     }
@@ -59,8 +58,7 @@ impl DeviceProvider for CpalProvider {
     fn get_device_by_uid(&mut self, id: &String) -> Result<Box<dyn Device>, FindError> {
         self.host
             .devices()
-            .map_err(|_| FindError::Unknown)? // TODO: Requires platform-specific error handling
-            .into_iter()
+            .map_err(|_| FindError::Unknown)?
             .find(|dev| dev.name().unwrap_or("NULL".into()) == *id)
             .ok_or(FindError::DeviceDoesNotExist)
             .map(|dev| Box::new(CpalDevice::from(dev)) as Box<dyn Device>)

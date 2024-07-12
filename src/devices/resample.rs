@@ -189,7 +189,7 @@ impl Resampler {
     pub fn convert_formats(
         &mut self,
         frame: PlaybackFrame,
-        target_format: FormatInfo,
+        target_format: &FormatInfo,
     ) -> PlaybackFrame {
         if target_format.sample_rate != frame.rate {
             let mut source: Vec<Vec<f32>> = convert_samples(frame.samples);
