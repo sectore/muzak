@@ -1,16 +1,12 @@
 use std::{
     sync::mpsc::{Receiver, Sender},
-    thread::sleep,
     time::Duration,
 };
 
 use gpui::{AppContext, Model};
 use image::RgbaImage;
 
-use crate::{
-    media::{metadata::Metadata, playback},
-    ui::models::Models,
-};
+use crate::{media::metadata::Metadata, ui::models::Models};
 
 use super::{
     events::{PlaybackCommand, PlaybackEvent},

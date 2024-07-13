@@ -1,10 +1,4 @@
-use std::ops::{Add, Sub};
-
-use rubato::{
-    FftFixedIn, SincFixedIn, SincInterpolationParameters, SincInterpolationType, VecResampler,
-    WindowFunction,
-};
-use symphonia::core::meta::Value;
+use rubato::{FftFixedIn, VecResampler};
 use ux::{i24, u24};
 
 use crate::media::playback::{PlaybackFrame, Samples};

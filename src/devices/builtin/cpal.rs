@@ -1,8 +1,4 @@
-use std::{
-    collections::VecDeque,
-    ops::Range,
-    sync::mpsc::{self, Receiver, Sender},
-};
+use std::ops::Range;
 
 use crate::{
     devices::{
@@ -65,11 +61,6 @@ impl DeviceProvider for CpalProvider {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum CpalEvent {
-    NextSegment,
-}
-
 struct CpalDevice {
     device: cpal::Device,
 }
@@ -91,20 +82,6 @@ fn format_from_cpal(format: &cpal::SampleFormat) -> SampleFormat {
         cpal::SampleFormat::F32 => SampleFormat::Float32,
         cpal::SampleFormat::F64 => SampleFormat::Float64,
         _ => SampleFormat::Unsupported, // should never happen
-    }
-}
-
-fn cpal_from_format(format: &SampleFormat) -> cpal::SampleFormat {
-    match format {
-        SampleFormat::Signed8 => cpal::SampleFormat::I8,
-        SampleFormat::Signed16 => cpal::SampleFormat::I16,
-        SampleFormat::Signed32 => cpal::SampleFormat::I32,
-        SampleFormat::Unsigned8 => cpal::SampleFormat::U8,
-        SampleFormat::Unsigned16 => cpal::SampleFormat::U16,
-        SampleFormat::Unsigned32 => cpal::SampleFormat::U32,
-        SampleFormat::Float32 => cpal::SampleFormat::F32,
-        SampleFormat::Float64 => cpal::SampleFormat::F64,
-        _ => cpal::SampleFormat::U16, // should be impossible
     }
 }
 
@@ -165,14 +142,14 @@ impl CpalDevice {
 
                     data[written..].iter_mut().for_each(|v| *v = T::muted())
                 },
-                move |err| {},
+                move |_| {},
                 None,
             )
             .map_err(|_| OpenError::Unknown)?;
 
         Ok(Box::new(CpalStream {
             ring_buf: prod,
-            stream,
+            _stream: stream,
             format,
         }))
     }
@@ -263,7 +240,7 @@ where
     T: GetInnerSamples + SizedSample + Default,
 {
     pub ring_buf: rb::Producer<T>,
-    pub stream: cpal::Stream,
+    pub _stream: cpal::Stream,
     pub format: FormatInfo,
 }
 

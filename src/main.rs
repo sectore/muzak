@@ -2,6 +2,7 @@ mod devices;
 mod media;
 mod playback;
 mod ui;
+mod util;
 
 fn main() {
     let subscriber = tracing_subscriber::FmtSubscriber::new();

@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     sync::mpsc::{Receiver, Sender},
     thread::sleep,
 };
@@ -11,10 +10,7 @@ use crate::{
         resample::Resampler,
         traits::{Device, DeviceProvider, OutputStream},
     },
-    media::{
-        builtin::symphonia::SymphoniaProvider,
-        traits::{MediaPlugin, MediaProvider},
-    },
+    media::{builtin::symphonia::SymphoniaProvider, traits::MediaProvider},
 };
 
 use super::{
@@ -30,8 +26,6 @@ pub enum PlaybackState {
 }
 
 pub struct PlaybackThread {
-    media_provider_index: HashMap<&'static str, Vec<&'static str>>,
-    device_provider_index: Vec<&'static str>,
     commands_rx: Receiver<PlaybackCommand>,
     events_tx: Sender<PlaybackEvent>,
     media_provider: Option<Box<dyn MediaProvider>>,
@@ -49,16 +43,9 @@ impl PlaybackThread {
     pub fn start<T: PlaybackInterface>() -> T {
         let (commands_tx, commands_rx) = std::sync::mpsc::channel();
         let (events_tx, events_rx) = std::sync::mpsc::channel();
-        let mut media_provider_index: HashMap<&'static str, Vec<&'static str>> = HashMap::new();
-
-        for i in SymphoniaProvider::SUPPORTED_MIMETYPES {
-            media_provider_index.insert(i, vec![SymphoniaProvider::NAME]);
-        }
 
         std::thread::spawn(move || {
             let mut thread = PlaybackThread {
-                media_provider_index,
-                device_provider_index: vec!["cpal"],
                 commands_rx,
                 events_tx,
                 media_provider: None,
@@ -257,7 +244,9 @@ impl PlaybackThread {
                         .unwrap()
                         .convert_formats(first_samples, self.format.as_ref().unwrap());
 
-                    stream.submit_frame(converted);
+                    stream
+                        .submit_frame(converted)
+                        .expect("failed to submit frames to stream");
                 } else {
                     let samples = provider.read_samples().expect("unable to read samples");
                     let converted = self
@@ -266,7 +255,9 @@ impl PlaybackThread {
                         .unwrap()
                         .convert_formats(samples, self.format.as_ref().unwrap());
 
-                    stream.submit_frame(converted);
+                    stream
+                        .submit_frame(converted)
+                        .expect("failed to submit frames to stream");
                 }
             }
         }

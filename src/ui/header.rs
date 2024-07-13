@@ -1,10 +1,10 @@
-use std::{process::Child, sync::Arc};
+use std::sync::Arc;
 
 use gpui::*;
-use image::{imageops::blur, Pixel, RgbaImage};
+use image::RgbaImage;
 use prelude::FluentBuilder;
 
-use crate::media::metadata::Metadata;
+use crate::{media::metadata::Metadata, util::rgb_to_bgr};
 
 use super::models::Models;
 
@@ -22,13 +22,13 @@ impl Header {
 
 #[cfg(not(target_os = "macos"))]
 impl Render for Header {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut ViewContext<Self>) -> impl IntoElement {
         div()
             .w_full()
             .h(px(60.0))
             .bg(rgb(0x111827))
             .on_mouse_move(|_e, cx| cx.refresh())
-            .on_mouse_down(MouseButton::Left, move |e, cx| cx.start_window_move())
+            .on_mouse_down(MouseButton::Left, move |_, cx| cx.start_window_move())
             .flex()
             .child(self.info_section.clone())
             .child(PlaybackSection::default())
@@ -37,7 +37,7 @@ impl Render for Header {
 
 #[cfg(target_os = "macos")]
 impl Render for Header {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut ViewContext<Self>) -> impl IntoElement {
         div()
             .w_full()
             .h(px(60.0))
@@ -63,7 +63,7 @@ impl InfoSection {
             let metadata_model = cx.global::<Models>().metadata.clone();
             let albumart_model = cx.global::<Models>().albumart.clone();
 
-            cx.observe(&metadata_model, |this, m, cx| {
+            cx.observe(&metadata_model, |_, _, cx| {
                 cx.notify();
             })
             .detach();
@@ -81,13 +81,7 @@ impl Render for InfoSection {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         cx.observe(&self.albumart, |this, m, cx| {
             let mut image = m.read(cx).clone();
-            // FIXME: GPUI uses BGR instead of RGB for some reason, this is a hack to get around it
-            image.as_mut().map(|v| {
-                v.pixels_mut().for_each(|v| {
-                    let slice = v.channels();
-                    *v = *image::Rgba::from_slice(&[slice[2], slice[1], slice[0], slice[3]]);
-                });
-            });
+            image.as_mut().map(rgb_to_bgr);
 
             this.albumart_actual = image.map(|v| ImageSource::Data(Arc::new(ImageData::new(v))));
             cx.notify()
@@ -143,7 +137,7 @@ pub struct PlaybackSection {
 }
 
 impl RenderOnce for PlaybackSection {
-    fn render(self, cx: &mut WindowContext) -> impl IntoElement {
+    fn render(self, _: &mut WindowContext) -> impl IntoElement {
         div()
             .flex()
             .items_center()
@@ -187,7 +181,7 @@ impl RenderOnce for WindowControls {
 
 #[cfg(not(target_os = "macos"))]
 impl RenderOnce for WindowControls {
-    fn render(self, cx: &mut WindowContext) -> impl IntoElement {
+    fn render(self, _: &mut WindowContext) -> impl IntoElement {
         div().w(px(65.0)).h_full()
     }
 }

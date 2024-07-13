@@ -1,8 +1,3 @@
-use std::{
-    thread::{current, sleep, sleep_ms},
-    time::Duration,
-};
-
 use gpui::{AppContext, Context, EventEmitter, Global, Model};
 use image::RgbaImage;
 
