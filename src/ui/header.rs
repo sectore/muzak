@@ -80,8 +80,7 @@ impl InfoSection {
 impl Render for InfoSection {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         cx.observe(&self.albumart, |this, m, cx| {
-            let mut image = m.read(cx).clone();
-            image.as_mut().map(rgb_to_bgr);
+            let image = m.read(cx).clone();
 
             this.albumart_actual = image.map(|v| ImageSource::Data(Arc::new(ImageData::new(v))));
             cx.notify()
