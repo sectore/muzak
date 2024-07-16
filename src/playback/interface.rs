@@ -20,7 +20,6 @@ pub trait PlaybackInterface {
 pub struct GPUIPlaybackInterface {
     commands_tx: Sender<PlaybackCommand>,
     events_rx: Option<Receiver<PlaybackEvent>>,
-    state: PlaybackState,
 }
 
 impl gpui::Global for GPUIPlaybackInterface {}
@@ -30,7 +29,6 @@ impl PlaybackInterface for GPUIPlaybackInterface {
         Self {
             commands_tx,
             events_rx: Some(events_rx),
-            state: PlaybackState::Stopped,
         }
     }
 }
@@ -102,11 +100,7 @@ impl GPUIPlaybackInterface {
             .expect("could not send tx");
     }
 
-    pub fn get_state(&self) -> PlaybackState {
-        self.state
-    }
-
-    pub fn start_broadcast_thread(&mut self, cx: &mut AppContext) {
+    pub fn start_broadcast(&mut self, cx: &mut AppContext) {
         let mut events_rx = None;
         std::mem::swap(&mut self.events_rx, &mut events_rx);
 

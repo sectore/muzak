@@ -1,7 +1,10 @@
 use gpui::*;
 use prelude::FluentBuilder;
 
-use crate::playback::{interface::GPUIPlaybackInterface, thread::PlaybackThread};
+use crate::{
+    data::{interface::GPUIDataInterface, thread::DataThread},
+    playback::{interface::GPUIPlaybackInterface, thread::PlaybackThread},
+};
 
 use super::{
     arguments::parse_args_and_prepare, assets::Assets, header::Header, models::build_models,
@@ -191,12 +194,16 @@ pub fn run() {
 
         build_models(cx);
 
-        let mut interface: GPUIPlaybackInterface = PlaybackThread::start();
+        let mut playback_interface: GPUIPlaybackInterface = PlaybackThread::start();
 
-        interface.start_broadcast_thread(cx);
-        parse_args_and_prepare(&interface);
+        playback_interface.start_broadcast(cx);
+        parse_args_and_prepare(&playback_interface);
 
-        cx.set_global(interface);
+        cx.set_global(playback_interface);
+
+        let mut data_interface: GPUIDataInterface = DataThread::start();
+        data_interface.start_broadcast(cx);
+        cx.set_global(data_interface);
 
         cx.open_window(
             WindowOptions {
