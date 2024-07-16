@@ -462,4 +462,8 @@ impl MediaPlugin for SymphoniaProvider {
         "audio/m4a",
         "audio/x-aiff",
     ];
+
+    const PROVIDES_DECODING: bool = true;
+    const PROVIDES_METADATA: bool = true;
+    const ALWAYS_CHECK_METADATA: bool = false;
 }

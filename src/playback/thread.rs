@@ -42,6 +42,7 @@ pub struct PlaybackThread {
 }
 
 impl PlaybackThread {
+    /// Starts the playback thread and returns the created interface.
     pub fn start<T: PlaybackInterface>() -> T {
         let (commands_tx, commands_rx) = std::sync::mpsc::channel();
         let (events_tx, events_rx) = std::sync::mpsc::channel();

@@ -17,6 +17,7 @@ pub struct DataThread {
 }
 
 impl DataThread {
+    /// Starts the data thread and returns the created interface.
     pub fn start<T: DataInterface>() -> T {
         let (commands_tx, commands_rx) = std::sync::mpsc::channel();
         let (events_tx, events_rx) = std::sync::mpsc::channel();
