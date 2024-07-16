@@ -10,7 +10,9 @@ use crate::{
         resample::Resampler,
         traits::{Device, DeviceProvider, OutputStream},
     },
-    media::{builtin::symphonia::SymphoniaProvider, traits::MediaProvider},
+    media::{
+        builtin::symphonia::SymphoniaProvider, errors::PlaybackReadError, traits::MediaProvider,
+    },
 };
 
 use super::{
@@ -174,6 +176,7 @@ impl PlaybackThread {
 
         if let Some(provider) = &mut self.media_provider {
             // TODO: proper error handling
+            self.resampler = None;
             let src = std::fs::File::open(path).expect("failed to open media");
             provider.open(src, None).expect("unable to open file");
             provider.start_playback().expect("unable to start playback");
@@ -186,6 +189,27 @@ impl PlaybackThread {
         self.events_tx
             .send(PlaybackEvent::StateChanged(PlaybackState::Playing))
             .expect("unable to send event");
+    }
+
+    pub fn next(&mut self) {
+        if self.queue_next < self.queue.len() {
+            println!(
+                "Next song: {} at {}",
+                self.queue[self.queue_next], self.queue_next
+            );
+            let next_path = self.queue[self.queue_next].clone();
+            self.open(&next_path);
+            self.queue_next += 1;
+        } else {
+            if let Some(provider) = &mut self.media_provider {
+                provider.stop_playback().expect("unable to stop playback");
+                provider.close().expect("unable to close media");
+            }
+            self.state = PlaybackState::Stopped;
+            self.events_tx
+                .send(PlaybackEvent::StateChanged(PlaybackState::Stopped))
+                .expect("unable to send event");
+        }
     }
 
     pub fn queue(&mut self, path: &String) {
@@ -206,6 +230,7 @@ impl PlaybackThread {
     }
 
     pub fn queue_list(&mut self, mut paths: Vec<String>) {
+        let pre_len = self.queue.len();
         let first = paths.first().cloned();
 
         self.queue.append(&mut paths);
@@ -213,6 +238,7 @@ impl PlaybackThread {
         if self.state == PlaybackState::Stopped {
             if let Some(first) = first {
                 self.open(&first);
+                self.queue_next = pre_len + 1;
             }
         }
     }
@@ -222,7 +248,23 @@ impl PlaybackThread {
             if let Some(provider) = &mut self.media_provider {
                 if self.resampler.is_none() {
                     // TODO: proper error handling
-                    let first_samples = provider.read_samples().expect("unable to read samples");
+                    let first_samples = match provider.read_samples() {
+                        Ok(samples) => samples,
+                        Err(e) => match e {
+                            PlaybackReadError::NothingOpen => {
+                                panic!("thread state is invalid: no file open")
+                            }
+                            PlaybackReadError::NeverStarted => {
+                                panic!("thread state is invalid: playback never started")
+                            }
+                            PlaybackReadError::EOF => {
+                                self.next();
+                                return;
+                            }
+                            PlaybackReadError::Unknown => return,
+                            PlaybackReadError::DecodeFatal => panic!("fatal decoding error"),
+                        },
+                    };
                     let duration = provider.duration_frames().expect("can't get duration");
                     let device_format = stream.get_current_format().unwrap();
 
@@ -248,7 +290,23 @@ impl PlaybackThread {
                         .submit_frame(converted)
                         .expect("failed to submit frames to stream");
                 } else {
-                    let samples = provider.read_samples().expect("unable to read samples");
+                    let samples = match provider.read_samples() {
+                        Ok(samples) => samples,
+                        Err(e) => match e {
+                            PlaybackReadError::NothingOpen => {
+                                panic!("thread state is invalid: no file open")
+                            }
+                            PlaybackReadError::NeverStarted => {
+                                panic!("thread state is invalid: playback never started")
+                            }
+                            PlaybackReadError::EOF => {
+                                self.next();
+                                return;
+                            }
+                            PlaybackReadError::Unknown => return,
+                            PlaybackReadError::DecodeFatal => panic!("fatal decoding error"),
+                        },
+                    };
                     let converted = self
                         .resampler
                         .as_mut()
