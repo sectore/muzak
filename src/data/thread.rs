@@ -22,14 +22,17 @@ impl DataThread {
         let (commands_tx, commands_rx) = std::sync::mpsc::channel();
         let (events_tx, events_rx) = std::sync::mpsc::channel();
 
-        std::thread::spawn(move || {
-            let mut thread = DataThread {
-                commands_rx,
-                events_tx,
-            };
+        std::thread::Builder::new()
+            .name("data".to_string())
+            .spawn(move || {
+                let mut thread = DataThread {
+                    commands_rx,
+                    events_tx,
+                };
 
-            thread.run();
-        });
+                thread.run();
+            })
+            .expect("could not start data thread");
 
         T::new(commands_tx, events_rx)
     }

@@ -47,23 +47,26 @@ impl PlaybackThread {
         let (commands_tx, commands_rx) = std::sync::mpsc::channel();
         let (events_tx, events_rx) = std::sync::mpsc::channel();
 
-        std::thread::spawn(move || {
-            let mut thread = PlaybackThread {
-                commands_rx,
-                events_tx,
-                media_provider: None,
-                device_provider: None,
-                device: None,
-                stream: None,
-                state: PlaybackState::Stopped,
-                resampler: None,
-                format: None,
-                queue: Vec::new(),
-                queue_next: 0,
-            };
+        std::thread::Builder::new()
+            .name("playback".to_string())
+            .spawn(move || {
+                let mut thread = PlaybackThread {
+                    commands_rx,
+                    events_tx,
+                    media_provider: None,
+                    device_provider: None,
+                    device: None,
+                    stream: None,
+                    state: PlaybackState::Stopped,
+                    resampler: None,
+                    format: None,
+                    queue: Vec::new(),
+                    queue_next: 0,
+                };
 
-            thread.run();
-        });
+                thread.run();
+            })
+            .expect("could not start playback thread");
 
         T::new(commands_tx, events_rx)
     }
