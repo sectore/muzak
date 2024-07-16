@@ -430,15 +430,10 @@ impl MediaProvider for SymphoniaProvider {
         self.pending_metadata_update
     }
 
-    fn read_image(&mut self) -> Result<Option<RgbaImage>, MetadataError> {
+    fn read_image(&mut self) -> Result<Option<Box<[u8]>>, MetadataError> {
         if self.format.is_some() {
             if let Some(visual) = &self.last_image {
-                let image = image::io::Reader::new(Cursor::new(visual.data.clone()))
-                    .with_guessed_format()
-                    .map_err(|_| MetadataError::Unknown)?
-                    .decode()
-                    .map_err(|_| MetadataError::Unknown)?;
-                Ok(Some(image.into_rgba8()))
+                Ok(Some(visual.data.clone()))
             } else {
                 Ok(None)
             }

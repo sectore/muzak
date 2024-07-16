@@ -6,7 +6,10 @@ use std::{
 use gpui::{AppContext, Model};
 use image::RgbaImage;
 
-use crate::{media::metadata::Metadata, ui::models::Models};
+use crate::{
+    media::metadata::Metadata,
+    ui::models::{ImageEvent, Models},
+};
 
 use super::{
     events::{PlaybackCommand, PlaybackEvent},
@@ -136,10 +139,7 @@ impl GPUIPlaybackInterface {
                             }
                             PlaybackEvent::AlbumArtUpdate(v) => {
                                 albumart_model
-                                    .update(&mut cx, |m, cx| {
-                                        *m = Some(v);
-                                        cx.notify()
-                                    })
+                                    .update(&mut cx, |_, cx| cx.emit(ImageEvent(v)))
                                     .expect("failed to update albumart");
                             }
                             _ => (),

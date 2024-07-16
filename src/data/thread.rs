@@ -35,18 +35,15 @@ impl DataThread {
     }
 
     fn run(&mut self) {
-        loop {
-            match self.commands_rx.try_recv() {
-                Ok(command) => match command {
-                    DataCommand::DecodeImage(data, image_type, layout) => {
-                        if let Err(_) = self.decode_image(data, image_type, layout) {
-                            self.events_tx
-                                .send(DataEvent::DecodeError(image_type))
-                                .expect("could not send event");
-                        }
+        while let Ok(command) = self.commands_rx.recv() {
+            match command {
+                DataCommand::DecodeImage(data, image_type, layout) => {
+                    if self.decode_image(data, image_type, layout).is_err() {
+                        self.events_tx
+                            .send(DataEvent::DecodeError(image_type))
+                            .expect("could not send event");
                     }
-                },
-                Err(_) => break,
+                }
             }
 
             sleep(std::time::Duration::from_millis(50));

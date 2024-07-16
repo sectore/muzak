@@ -81,5 +81,5 @@ pub trait MediaProvider {
     /// Retrieves the current image from the track's metadata, if there is any. If no file is
     /// opened, or the provider does not support image retrieval, this function should return an
     /// error.
-    fn read_image(&mut self) -> Result<Option<RgbaImage>, MetadataError>;
+    fn read_image(&mut self) -> Result<Option<Box<[u8]>>, MetadataError>;
 }

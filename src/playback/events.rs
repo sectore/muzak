@@ -56,7 +56,7 @@ pub enum PlaybackEvent {
     MetadataUpdate(Box<Metadata>),
     /// Indicates that the MediaProvider has provided a new album art image to be consumed by the
     /// user interface.
-    AlbumArtUpdate(RgbaImage),
+    AlbumArtUpdate(Box<[u8]>),
     /// Indicates that the position in the current file has changed. The f64 is the new position,
     /// in milliseconds.
     PositionChanged(f64),
