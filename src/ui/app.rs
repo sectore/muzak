@@ -7,7 +7,8 @@ use crate::{
 };
 
 use super::{
-    arguments::parse_args_and_prepare, assets::Assets, header::Header, models::build_models,
+    arguments::parse_args_and_prepare, assets::Assets, global_actions::register_actions,
+    header::Header, models::build_models,
 };
 
 struct WindowShadow {
@@ -185,12 +186,7 @@ pub fn run() {
         let bounds = Bounds::centered(None, size(px(1024.0), px(768.0)), cx);
         find_fonts(cx).expect("unable to load fonts");
 
-        cx.activate(true);
-        cx.on_action(quit);
-        cx.set_menus(vec![Menu {
-            name: "set_menus",
-            items: vec![MenuItem::action("Quit", Quit)],
-        }]);
+        register_actions(cx);
 
         build_models(cx);
 
@@ -234,12 +230,4 @@ pub fn run() {
         )
         .unwrap();
     });
-}
-
-// Associate actions using the `actions!` macro (or `impl_actions!` macro)
-actions!(set_menus, [Quit]);
-
-// Define the quit function that is registered with the AppContext
-fn quit(_: &Quit, cx: &mut AppContext) {
-    cx.quit();
 }

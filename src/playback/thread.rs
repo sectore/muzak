@@ -139,8 +139,8 @@ impl PlaybackThread {
                 PlaybackCommand::Open(v) => self.open(&v),
                 PlaybackCommand::Queue(v) => self.queue(&v),
                 PlaybackCommand::QueueList(v) => self.queue_list(v),
-                PlaybackCommand::Next => todo!(),
-                PlaybackCommand::Previous => todo!(),
+                PlaybackCommand::Next => self.next(),
+                PlaybackCommand::Previous => self.previous(),
                 PlaybackCommand::ClearQueue => todo!(),
                 PlaybackCommand::Jump(_) => todo!(),
                 PlaybackCommand::Seek(_) => todo!(),
@@ -236,6 +236,15 @@ impl PlaybackThread {
             self.events_tx
                 .send(PlaybackEvent::StateChanged(PlaybackState::Stopped))
                 .expect("unable to send event");
+        }
+    }
+
+    fn previous(&mut self) {
+        if self.queue_next > 0 && self.queue_next < self.queue.len() {
+            info!("Opening previous file in queue");
+            self.queue_next -= 1;
+            let prev_path = self.queue[self.queue_next].clone();
+            self.open(&prev_path);
         }
     }
 
