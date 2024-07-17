@@ -57,6 +57,10 @@ impl Render for Header {
             .on_mouse_move(|_e, cx| cx.refresh())
             .on_mouse_down(MouseButton::Left, move |e, cx| cx.start_window_move())
             .flex()
+            // I'm gonna be honest, I have no idea why this is necessary but without it, the header
+            // ends 24px short of the right edge of the window. This is probably a bug with GPUI
+            // but I'm not going to report it until I'm sure.
+            .pr(px(-24.0))
             .child(WindowControls {})
             .child(self.info_section.clone())
             .child(self.scrubber.clone())
@@ -259,7 +263,7 @@ pub struct WindowControls {}
 #[cfg(target_os = "macos")]
 impl RenderOnce for WindowControls {
     fn render(self, cx: &mut WindowContext) -> impl IntoElement {
-        div().w(px(65.0)).h_full()
+        div().flex_shrink_0().w(px(65.0)).h_full()
     }
 }
 
