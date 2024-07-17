@@ -95,7 +95,7 @@ impl PlaybackThread {
         if self.state == PlaybackState::Playing {
             self.play_audio();
         } else {
-            sleep(std::time::Duration::from_millis(50));
+            sleep(std::time::Duration::from_millis(10));
         }
 
         self.broadcast_events();
@@ -112,11 +112,9 @@ impl PlaybackThread {
                     .expect("unable to send event");
 
                 let image = provider.read_image().expect("failed to decode image");
-                if let Some(image) = image {
-                    self.events_tx
-                        .send(PlaybackEvent::AlbumArtUpdate(image))
-                        .expect("unable to send event");
-                }
+                self.events_tx
+                    .send(PlaybackEvent::AlbumArtUpdate(image))
+                    .expect("unable to send event");
             }
         }
     }

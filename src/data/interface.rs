@@ -28,7 +28,7 @@ impl gpui::Global for GPUIDataInterface {}
 /// long as it is running on the main thread) to send commands to the data thread.
 ///
 /// This interface takes advantage of GPUI's asynchronous runtime to read messages without blocking
-/// rendering. Messages are read at quickest every 50ms, however the runtime may choose to run the
+/// rendering. Messages are read at quickest every 10ms, however the runtime may choose to run the
 /// function that reads events less frequently, depending on the current workload. Because of this,
 /// event handling should not perform any heavy operations, which should be added to the data
 /// thread.

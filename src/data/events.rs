@@ -12,6 +12,9 @@ pub enum ImageLayout {
     RGB,
 }
 
+/// A command to the data thread. This is used to control the playback thread from other threads.
+/// The data thread recieves these commands from an MPSC channel, and processes them in the order
+/// they are recieved, every 10 seconds.
 #[derive(Debug, PartialEq, Clone)]
 pub enum DataCommand {
     /// Requests that the data proccessing thread decode the specified image. The image type is
@@ -20,6 +23,9 @@ pub enum DataCommand {
     DecodeImage(Box<[u8]>, ImageType, ImageLayout),
 }
 
+/// An event from the data thread. This is used to communicate information from the data thread to
+/// other threads. The data thread sends these events to an MPSC channel, and the main thread
+/// processes them in the order they are recieved.
 #[derive(Debug, PartialEq, Clone)]
 pub enum DataEvent {
     /// Indicates that the data processing thread has decoded the specified image.

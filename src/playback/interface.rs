@@ -27,7 +27,7 @@ pub trait PlaybackInterface {
 /// function (so long as it is running on the main thread) to send commands to the playback thread.
 ///
 /// This interface takes advantage of GPUI's asynchronous runtime to read messages without blocking
-/// rendering. Messages are read at quickest every 50ms, however the runtime may choose to run the
+/// rendering. Messages are read at quickest every 10ms, however the runtime may choose to run the
 /// function that reads events less frequently, depending on the current workload. Because of this,
 /// event handling should not perform any heavy operations, which should be instead sent to the
 /// data thread for any required additional processing.
@@ -139,7 +139,14 @@ impl GPUIPlaybackInterface {
                             }
                             PlaybackEvent::AlbumArtUpdate(v) => {
                                 albumart_model
-                                    .update(&mut cx, |_, cx| cx.emit(ImageEvent(v)))
+                                    .update(&mut cx, |m, cx| {
+                                        if let Some(v) = v {
+                                            cx.emit(ImageEvent(v))
+                                        } else {
+                                            *m = None;
+                                            cx.notify()
+                                        }
+                                    })
                                     .expect("failed to update albumart");
                             }
                             _ => (),

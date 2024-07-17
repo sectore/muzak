@@ -49,7 +49,7 @@ impl DataThread {
                 }
             }
 
-            sleep(std::time::Duration::from_millis(50));
+            sleep(std::time::Duration::from_millis(10));
         }
     }
 

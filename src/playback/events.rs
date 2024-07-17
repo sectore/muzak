@@ -6,7 +6,7 @@ use super::thread::PlaybackState;
 
 /// A command to the playback thread. This is used to control the playback thread from other
 /// threads. The playback thread recieves these commands from an MPSC channel, and processes them
-/// in the order they are recieved. They are processed every 50ms when playback is stopped, or
+/// in the order they are recieved. They are processed every 10ms when playback is stopped, or
 /// every time additional decoding is required to fill the ring buffer during playback.
 #[derive(Debug, PartialEq, Clone)]
 pub enum PlaybackCommand {
@@ -56,7 +56,7 @@ pub enum PlaybackEvent {
     MetadataUpdate(Box<Metadata>),
     /// Indicates that the MediaProvider has provided a new album art image to be consumed by the
     /// user interface.
-    AlbumArtUpdate(Box<[u8]>),
+    AlbumArtUpdate(Option<Box<[u8]>>),
     /// Indicates that the position in the current file has changed. The f64 is the new position,
     /// in milliseconds.
     PositionChanged(f64),
