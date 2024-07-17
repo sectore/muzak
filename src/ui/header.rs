@@ -6,16 +6,18 @@ use prelude::FluentBuilder;
 
 use crate::{media::metadata::Metadata, util::rgb_to_bgr};
 
-use super::models::Models;
+use super::models::{Models, PlaybackInfo};
 
 pub struct Header {
     info_section: View<InfoSection>,
+    scrubber: View<Scrubber>,
 }
 
 impl Header {
     pub fn new<V: 'static>(cx: &mut ViewContext<V>) -> View<Self> {
         cx.new_view(|cx| Self {
             info_section: InfoSection::new(cx),
+            scrubber: Scrubber::new(cx),
         })
     }
 }
@@ -31,7 +33,7 @@ impl Render for Header {
             .on_mouse_down(MouseButton::Left, move |_, cx| cx.start_window_move())
             .flex()
             .child(self.info_section.clone())
-            .child(PlaybackSection::default())
+            .child(self.scrubber.clone())
     }
 }
 
@@ -47,7 +49,7 @@ impl Render for Header {
             .flex()
             .child(WindowControls {})
             .child(self.info_section.clone())
-            .child(PlaybackSection::default())
+            .child(self.scrubber.clone())
     }
 }
 
@@ -137,34 +139,33 @@ pub struct PlaybackSection {
 
 impl RenderOnce for PlaybackSection {
     fn render(self, _: &mut WindowContext) -> impl IntoElement {
-        div()
-            .flex()
-            .items_center()
-            .child(
-                div()
-                    .w(px(51.0))
-                    .h(px(30.0))
-                    .pl(px(21.0))
-                    .mr(px(-21.0))
-                    .rounded(px(15.0))
-                    .bg(rgb(0x1f2937)),
-            )
-            .child(deferred(
-                div()
-                    .w(px(42.0))
-                    .h(px(42.0))
-                    .rounded(px(21.0))
-                    .bg(rgb(0x374151)),
-            ))
-            .child(
-                div()
-                    .w(px(51.0))
-                    .h(px(30.0))
-                    .pl(px(21.0))
-                    .ml(px(-21.0))
-                    .rounded(px(15.0))
-                    .bg(rgb(0x1f2937)),
-            )
+        div().absolute().flex().w_full().child(
+            // TODO: position this so that it does not ever overlap with the timestamp and
+            // current track info
+            div()
+                .mr(auto())
+                .ml(auto())
+                .mt(px(6.0))
+                .border(px(1.0))
+                .rounded(px(5.0))
+                .border_color(rgba(0x64748b22))
+                .flex()
+                .child(
+                    div()
+                        .w(px(28.0))
+                        .h(px(26.0))
+                        .rounded_l(px(4.0))
+                        .bg(rgb(0x1f2937)),
+                )
+                .child(div().w(px(28.0)).h(px(26.0)).bg(rgb(0x334155)))
+                .child(
+                    div()
+                        .w(px(28.0))
+                        .h(px(26.0))
+                        .rounded_r(px(4.0))
+                        .bg(rgb(0x1f2937)),
+                ),
+        )
     }
 }
 
@@ -181,6 +182,99 @@ impl RenderOnce for WindowControls {
 #[cfg(not(target_os = "macos"))]
 impl RenderOnce for WindowControls {
     fn render(self, _: &mut WindowContext) -> impl IntoElement {
-        div().w(px(65.0)).h_full()
+        div().w(px(8.0)).h_full()
+    }
+}
+
+pub struct Scrubber {
+    position: Model<u64>,
+    duration: Model<u64>,
+}
+
+impl Scrubber {
+    fn new<V: 'static>(cx: &mut ViewContext<V>) -> View<Self> {
+        cx.new_view(|cx| {
+            let position_model = cx.global::<PlaybackInfo>().position.clone();
+            let duration_model = cx.global::<PlaybackInfo>().duration.clone();
+
+            cx.observe(&position_model, |_, _, cx| {
+                cx.notify();
+            })
+            .detach();
+
+            cx.observe(&duration_model, |_, _, cx| {
+                cx.notify();
+            })
+            .detach();
+
+            Self {
+                position: position_model,
+                duration: duration_model,
+            }
+        })
+    }
+}
+
+impl Render for Scrubber {
+    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+        let position = *self.position.read(cx);
+        let duration = *self.duration.read(cx);
+        let remaining = duration - position;
+
+        div()
+            .pl(px(13.0))
+            .pr(px(13.0))
+            .border_l(px(1.0))
+            .border_color(rgb(0x1e293b))
+            .mr(px(-24.0))
+            .w_full()
+            .flex()
+            .flex_col()
+            .line_height(rems(1.0))
+            .text_size(px(15.0))
+            .font_family("CommitMono")
+            .font_weight(FontWeight::BOLD)
+            .child(
+                div()
+                    .w_full()
+                    .flex()
+                    .relative()
+                    .items_end()
+                    .mb(px(6.0))
+                    .mt(px(6.0))
+                    .child(deferred(PlaybackSection::default()))
+                    .child(
+                        div()
+                            .pr(px(6.0))
+                            .border_r(px(2.0))
+                            .border_color(rgb(0x4b5563))
+                            .child(format!("{:02}:{:02}", position / 60, position % 60)),
+                    )
+                    .child(div().ml(px(6.0)).text_color(rgb(0xcbd5e1)).child(format!(
+                        "{:02}:{:02}",
+                        duration / 60,
+                        duration % 60
+                    )))
+                    .child(div().h(px(30.0)))
+                    .child(div().ml(auto()).child(format!(
+                        "-{:02}:{:02}",
+                        remaining / 60,
+                        remaining % 60
+                    ))),
+            )
+            .child(
+                div()
+                    .w_full()
+                    .h(px(6.0))
+                    .bg(rgb(0x374151))
+                    .rounded(px(3.0))
+                    .child(
+                        div()
+                            .w(relative(position as f32 / duration as f32))
+                            .h(px(6.0))
+                            .rounded(px(3.0))
+                            .bg(rgb(0x3b82f6)),
+                    ),
+            )
     }
 }

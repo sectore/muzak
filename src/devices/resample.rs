@@ -189,7 +189,6 @@ impl Resampler {
             let mut source: Vec<Vec<f32>> = convert_samples(frame.samples);
 
             let resampled = if source[0].len() < self.duration as usize {
-                println!("end of stream reached, using process_partial");
                 self.resampler
                     .process_partial(Some(&source), None)
                     .expect("resampler error")

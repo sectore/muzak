@@ -106,7 +106,6 @@ impl PlaybackThread {
     pub fn broadcast_events(&mut self) {
         if let Some(provider) = &mut self.media_provider {
             if provider.metadata_updated() {
-                println!("Metadata updated");
                 // TODO: proper error handling
                 let metadata = provider.read_metadata().expect("failed to get metadata");
                 self.events_tx
@@ -192,12 +191,10 @@ impl PlaybackThread {
                 .expect("unable to send event");
 
             if let Ok(duration) = provider.duration_secs() {
-                println!("Duration: {}", duration);
                 self.events_tx
                     .send(PlaybackEvent::DurationChanged(duration))
                     .expect("unable to send event");
             } else {
-                println!("error getting duration for some reason");
                 self.events_tx
                     .send(PlaybackEvent::DurationChanged(0))
                     .expect("unable to send event");
@@ -213,10 +210,6 @@ impl PlaybackThread {
 
     fn next(&mut self) {
         if self.queue_next < self.queue.len() {
-            println!(
-                "Next song: {} at {}",
-                self.queue[self.queue_next], self.queue_next
-            );
             let next_path = self.queue[self.queue_next].clone();
             self.open(&next_path);
             self.queue_next += 1;
@@ -269,8 +262,6 @@ impl PlaybackThread {
                 if timestamp == self.last_timestamp {
                     return;
                 }
-
-                println!("Seconds: {}", timestamp);
 
                 self.events_tx
                     .send(PlaybackEvent::PositionChanged(timestamp))

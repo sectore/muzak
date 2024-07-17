@@ -8,7 +8,7 @@ use image::RgbaImage;
 
 use crate::{
     media::metadata::Metadata,
-    ui::models::{ImageEvent, Models},
+    ui::models::{ImageEvent, Models, PlaybackInfo},
 };
 
 use super::{
@@ -124,6 +124,8 @@ impl GPUIPlaybackInterface {
         let metadata_model: Model<Metadata> = cx.global::<Models>().metadata.clone();
         let albumart_model: Model<Option<RgbaImage>> = cx.global::<Models>().albumart.clone();
 
+        let playback_info = cx.global::<PlaybackInfo>().clone();
+
         if let Some(events_rx) = events_rx {
             cx.spawn(|mut cx| async move {
                 loop {
@@ -148,6 +150,33 @@ impl GPUIPlaybackInterface {
                                         }
                                     })
                                     .expect("failed to update albumart");
+                            }
+                            PlaybackEvent::StateChanged(v) => {
+                                playback_info
+                                    .playback_state
+                                    .update(&mut cx, |m, cx| {
+                                        *m = v;
+                                        cx.notify()
+                                    })
+                                    .expect("failed to update playback state");
+                            }
+                            PlaybackEvent::PositionChanged(v) => {
+                                playback_info
+                                    .position
+                                    .update(&mut cx, |m, cx| {
+                                        *m = v;
+                                        cx.notify()
+                                    })
+                                    .expect("failed to update position");
+                            }
+                            PlaybackEvent::DurationChanged(v) => {
+                                playback_info
+                                    .duration
+                                    .update(&mut cx, |m, cx| {
+                                        *m = v;
+                                        cx.notify()
+                                    })
+                                    .expect("failed to update duration");
                             }
                             _ => (),
                         }

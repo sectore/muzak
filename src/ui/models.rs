@@ -7,6 +7,7 @@ use crate::{
         interface::GPUIDataInterface,
     },
     media::metadata::Metadata,
+    playback::thread::PlaybackState,
 };
 
 // yes this looks a little silly
@@ -24,6 +25,15 @@ pub struct Models {
 
 impl Global for Models {}
 
+#[derive(Clone)]
+pub struct PlaybackInfo {
+    pub position: Model<u64>,
+    pub duration: Model<u64>,
+    pub playback_state: Model<PlaybackState>,
+}
+
+impl Global for PlaybackInfo {}
+
 pub fn build_models(cx: &mut AppContext) {
     let metadata: Model<Metadata> = cx.new_model(|_| Metadata::default());
     let albumart: Model<Option<RgbaImage>> = cx.new_model(|_| None);
@@ -39,4 +49,14 @@ pub fn build_models(cx: &mut AppContext) {
     .detach();
 
     cx.set_global(Models { metadata, albumart });
+
+    let position: Model<u64> = cx.new_model(|_| 0);
+    let duration: Model<u64> = cx.new_model(|_| 0);
+    let playback_state: Model<PlaybackState> = cx.new_model(|_| PlaybackState::Stopped);
+
+    cx.set_global(PlaybackInfo {
+        position,
+        duration,
+        playback_state,
+    });
 }

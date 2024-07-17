@@ -171,7 +171,7 @@ pub fn find_fonts(cx: &mut AppContext) -> gpui::Result<()> {
     let paths = cx.asset_source().list("fonts")?;
     let mut fonts = vec![];
     for path in paths {
-        if path.ends_with(".ttf") {
+        if path.ends_with(".ttf") || path.ends_with(".otf") {
             if let Some(v) = cx.asset_source().load(&path)? {
                 fonts.push(v);
             }
@@ -241,6 +241,5 @@ actions!(set_menus, [Quit]);
 
 // Define the quit function that is registered with the AppContext
 fn quit(_: &Quit, cx: &mut AppContext) {
-    println!("Gracefully quitting the application . . .");
     cx.quit();
 }
