@@ -99,6 +99,9 @@ impl Render for InfoSection {
             .m(px(12.0))
             .gap(px(10.0))
             .flex()
+            .w(px(400.0))
+            .max_w(px(400.0))
+            .overflow_hidden()
             .child(
                 div()
                     .id("album-art")
@@ -150,14 +153,14 @@ impl RenderOnce for PlaybackSection {
                 .ml(auto())
                 .mt(px(6.0))
                 .border(px(1.0))
-                .rounded(px(5.0))
+                .rounded(px(4.0))
                 .border_color(rgba(0x64748b22))
                 .flex()
                 .child(
                     div()
                         .w(px(28.0))
                         .h(px(26.0))
-                        .rounded_l(px(4.0))
+                        .rounded_l(px(3.0))
                         .bg(rgb(0x1f2937))
                         .id("header-prev-button")
                         .on_mouse_down(MouseButton::Left, |_, cx| {
@@ -180,7 +183,7 @@ impl RenderOnce for PlaybackSection {
                     div()
                         .w(px(28.0))
                         .h(px(26.0))
-                        .rounded_r(px(4.0))
+                        .rounded_r(px(3.0))
                         .bg(rgb(0x1f2937))
                         .id("header-next-button")
                         .on_mouse_down(MouseButton::Left, |_, cx| {
@@ -249,7 +252,6 @@ impl Render for Scrubber {
             .pr(px(13.0))
             .border_l(px(1.0))
             .border_color(rgb(0x1e293b))
-            .mr(px(-24.0))
             .w_full()
             .flex()
             .flex_col()

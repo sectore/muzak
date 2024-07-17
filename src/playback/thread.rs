@@ -139,7 +139,7 @@ impl PlaybackThread {
                 PlaybackCommand::Open(v) => self.open(&v),
                 PlaybackCommand::Queue(v) => self.queue(&v),
                 PlaybackCommand::QueueList(v) => self.queue_list(v),
-                PlaybackCommand::Next => self.next(),
+                PlaybackCommand::Next => self.next(true),
                 PlaybackCommand::Previous => self.previous(),
                 PlaybackCommand::ClearQueue => todo!(),
                 PlaybackCommand::Jump(_) => todo!(),
@@ -224,13 +224,13 @@ impl PlaybackThread {
         }
     }
 
-    fn next(&mut self) {
+    fn next(&mut self, user_initiated: bool) {
         if self.queue_next < self.queue.len() {
             info!("Opening next file in queue");
             let next_path = self.queue[self.queue_next].clone();
             self.open(&next_path);
             self.queue_next += 1;
-        } else {
+        } else if !user_initiated {
             info!("Playback queue is empty, stopping playback");
             if let Some(provider) = &mut self.media_provider {
                 provider.stop_playback().expect("unable to stop playback");
@@ -244,7 +244,7 @@ impl PlaybackThread {
     }
 
     fn previous(&mut self) {
-        if self.queue_next > 0 && self.queue_next < self.queue.len() {
+        if self.queue_next > 1 {
             info!("Opening previous file in queue");
             let prev_path = self.queue[self.queue_next - 2].clone();
             self.queue_next -= 1;
@@ -318,7 +318,7 @@ impl PlaybackThread {
                             }
                             PlaybackReadError::EOF => {
                                 info!("EOF, moving to next song");
-                                self.next();
+                                self.next(false);
                                 return;
                             }
                             PlaybackReadError::Unknown => return,
@@ -363,7 +363,7 @@ impl PlaybackThread {
                             }
                             PlaybackReadError::EOF => {
                                 info!("EOF, moving to next song");
-                                self.next();
+                                self.next(false);
                                 return;
                             }
                             PlaybackReadError::Unknown => return,
