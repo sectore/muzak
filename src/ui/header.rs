@@ -4,10 +4,10 @@ use gpui::*;
 use image::RgbaImage;
 use prelude::FluentBuilder;
 
-use crate::{media::metadata::Metadata, util::rgb_to_bgr};
+use crate::{media::metadata::Metadata, ui::global_actions::Quit, util::rgb_to_bgr};
 
 use super::{
-    global_actions::Quit,
+    global_actions::{Next, PlayPause, Previous},
     models::{Models, PlaybackInfo},
 };
 
@@ -159,19 +159,34 @@ impl RenderOnce for PlaybackSection {
                         .h(px(26.0))
                         .rounded_l(px(4.0))
                         .bg(rgb(0x1f2937))
-                        .id("header-play-button")
+                        .id("header-prev-button")
                         .on_mouse_down(MouseButton::Left, |_, cx| {
-                            println!("dispatching");
-                            cx.dispatch_action(Box::new(Quit))
+                            cx.dispatch_action(Box::new(Previous));
+                            cx.stop_propagation();
                         }),
                 )
-                .child(div().w(px(28.0)).h(px(26.0)).bg(rgb(0x334155)))
+                .child(
+                    div()
+                        .w(px(28.0))
+                        .h(px(26.0))
+                        .bg(rgb(0x334155))
+                        .id("header-play-button")
+                        .on_mouse_down(MouseButton::Left, |_, cx| {
+                            cx.dispatch_action(Box::new(PlayPause));
+                            cx.stop_propagation();
+                        }),
+                )
                 .child(
                     div()
                         .w(px(28.0))
                         .h(px(26.0))
                         .rounded_r(px(4.0))
-                        .bg(rgb(0x1f2937)),
+                        .bg(rgb(0x1f2937))
+                        .id("header-next-button")
+                        .on_mouse_down(MouseButton::Left, |_, cx| {
+                            cx.dispatch_action(Box::new(Next));
+                            cx.stop_propagation();
+                        }),
                 ),
         )
     }

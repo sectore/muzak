@@ -3,7 +3,7 @@ use std::{
     thread::sleep,
 };
 
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{
     devices::{
@@ -170,6 +170,10 @@ impl PlaybackThread {
 
         if self.state == PlaybackState::Paused {
             self.state = PlaybackState::Playing;
+
+            self.events_tx
+                .send(PlaybackEvent::StateChanged(PlaybackState::Playing))
+                .expect("unable to send event");
         }
 
         if self.state == PlaybackState::Stopped && !self.queue.is_empty() {
@@ -242,8 +246,9 @@ impl PlaybackThread {
     fn previous(&mut self) {
         if self.queue_next > 0 && self.queue_next < self.queue.len() {
             info!("Opening previous file in queue");
+            let prev_path = self.queue[self.queue_next - 2].clone();
             self.queue_next -= 1;
-            let prev_path = self.queue[self.queue_next].clone();
+            debug!("queue_next: {}", self.queue_next);
             self.open(&prev_path);
         }
     }

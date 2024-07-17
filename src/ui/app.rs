@@ -25,6 +25,7 @@ impl Render for WindowShadow {
 
         div()
             .id("window-backdrop")
+            .key_context("app")
             .bg(transparent_black())
             .map(|div| match decorations {
                 Decorations::Server => div,
