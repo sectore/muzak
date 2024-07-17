@@ -1,4 +1,5 @@
 use rubato::{FftFixedIn, VecResampler};
+use tracing::info;
 use ux::{i24, u24};
 
 use crate::media::playback::{PlaybackFrame, Samples};
@@ -163,7 +164,12 @@ pub struct Resampler {
 
 impl Resampler {
     pub fn new(orig_rate: u32, target_rate: u32, duration: u64, channels: u16) -> Self {
-        println!("resampling from {:?} to {:?}", orig_rate, target_rate);
+        if orig_rate != target_rate {
+            info!(
+                "Resampling required, resampling from {:?} to {:?}",
+                orig_rate, target_rate
+            );
+        }
 
         let resampler = FftFixedIn::<f32>::new(
             orig_rate as usize,

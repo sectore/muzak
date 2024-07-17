@@ -3,6 +3,8 @@ use std::{
     thread::sleep,
 };
 
+use tracing::info;
+
 use crate::{
     devices::{
         builtin::cpal::CpalProvider,
@@ -84,6 +86,15 @@ impl PlaybackThread {
                 .unwrap()
                 .get_default_device()
                 .unwrap(),
+        );
+
+        let format = self.device.as_ref().unwrap().get_default_format().unwrap();
+
+        info!(
+            "Opened device: {:?}, format: {:?}, rate: {}",
+            self.device.as_ref().unwrap().get_name(),
+            format.sample_type,
+            format.sample_rate
         );
 
         loop {
@@ -170,6 +181,7 @@ impl PlaybackThread {
     }
 
     fn open(&mut self, path: &String) {
+        info!("Opening: {}", path);
         if self.stream.is_none() {
             // TODO: proper error handling
             // TODO: allow the user to pick a format on supported platforms
@@ -210,10 +222,12 @@ impl PlaybackThread {
 
     fn next(&mut self) {
         if self.queue_next < self.queue.len() {
+            info!("Opening next file in queue");
             let next_path = self.queue[self.queue_next].clone();
             self.open(&next_path);
             self.queue_next += 1;
         } else {
+            info!("Playback queue is empty, stopping playback");
             if let Some(provider) = &mut self.media_provider {
                 provider.stop_playback().expect("unable to stop playback");
                 provider.close().expect("unable to close media");
@@ -226,6 +240,7 @@ impl PlaybackThread {
     }
 
     fn queue(&mut self, path: &String) {
+        info!("Adding file to queue: {}", path);
         let pre_len = self.queue.len();
         self.queue.push(path.clone());
 
@@ -243,6 +258,7 @@ impl PlaybackThread {
     }
 
     fn queue_list(&mut self, mut paths: Vec<String>) {
+        info!("Adding files to queue: {:?}", paths);
         let pre_len = self.queue.len();
         let first = paths.first().cloned();
 
@@ -287,6 +303,7 @@ impl PlaybackThread {
                                 panic!("thread state is invalid: playback never started")
                             }
                             PlaybackReadError::EOF => {
+                                info!("EOF, moving to next song");
                                 self.next();
                                 return;
                             }
@@ -331,6 +348,7 @@ impl PlaybackThread {
                                 panic!("thread state is invalid: playback never started")
                             }
                             PlaybackReadError::EOF => {
+                                info!("EOF, moving to next song");
                                 self.next();
                                 return;
                             }
