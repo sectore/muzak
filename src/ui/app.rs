@@ -1,5 +1,6 @@
 use gpui::*;
 use prelude::FluentBuilder;
+use tracing::debug;
 
 use crate::{
     data::{interface::GPUIDataInterface, thread::DataThread},
@@ -179,7 +180,10 @@ pub fn find_fonts(cx: &mut AppContext) -> gpui::Result<()> {
             }
         }
     }
-    cx.text_system().add_fonts(fonts)
+
+    let results = cx.text_system().add_fonts(fonts);
+    debug!("loaded fonts: {:?}", cx.text_system().all_font_names());
+    results
 }
 
 pub fn run() {

@@ -4,7 +4,10 @@ use gpui::*;
 use image::RgbaImage;
 use prelude::FluentBuilder;
 
-use crate::{media::metadata::Metadata, ui::global_actions::Quit, util::rgb_to_bgr};
+use crate::{
+    media::metadata::Metadata, playback::thread::PlaybackState, ui::global_actions::Quit,
+    util::rgb_to_bgr,
+};
 
 use super::{
     global_actions::{Next, PlayPause, Previous},
@@ -35,6 +38,10 @@ impl Render for Header {
             .on_mouse_move(|_e, cx| cx.refresh())
             .on_mouse_down(MouseButton::Left, move |_, cx| cx.start_window_move())
             .flex()
+            // I'm gonna be honest, I have no idea why this is necessary but without it, the header
+            // ends 24px short of the right edge of the window. This is probably a bug with GPUI
+            // but I'm not going to report it until I'm sure.
+            .pr(px(-24.0))
             .child(self.info_section.clone())
             .child(self.scrubber.clone())
     }
@@ -99,9 +106,11 @@ impl Render for InfoSection {
             .m(px(12.0))
             .gap(px(10.0))
             .flex()
-            .w(px(400.0))
-            .max_w(px(400.0))
+            .w(px(200.0))
+            .min_w(px(275.0))
+            .max_w(px(275.0))
             .overflow_hidden()
+            .flex_shrink_0()
             .child(
                 div()
                     .id("album-art")
@@ -136,15 +145,30 @@ impl Render for InfoSection {
     }
 }
 
-#[derive(IntoElement, Default)]
 pub struct PlaybackSection {
-    play_hovered: bool,
-    prev_hovered: bool,
-    next_hovered: bool,
+    info: PlaybackInfo,
 }
 
-impl RenderOnce for PlaybackSection {
-    fn render(self, _: &mut WindowContext) -> impl IntoElement {
+impl PlaybackSection {
+    pub fn new<V: 'static>(cx: &mut ViewContext<V>) -> View<Self> {
+        cx.new_view(|cx| {
+            let info = cx.global::<PlaybackInfo>().clone();
+            let state = info.playback_state.clone();
+
+            cx.observe(&state, |_, _, cx| {
+                cx.notify();
+            })
+            .detach();
+
+            Self { info }
+        })
+    }
+}
+
+impl Render for PlaybackSection {
+    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+        let state = self.info.playback_state.read(cx);
+
         div().absolute().flex().w_full().child(
             // TODO: position this so that it does not ever overlap with the timestamp and
             // current track info
@@ -154,7 +178,7 @@ impl RenderOnce for PlaybackSection {
                 .mt(px(6.0))
                 .border(px(1.0))
                 .rounded(px(4.0))
-                .border_color(rgba(0x64748b22))
+                .border_color(rgb(0x334155))
                 .flex()
                 .child(
                     div()
@@ -162,22 +186,47 @@ impl RenderOnce for PlaybackSection {
                         .h(px(26.0))
                         .rounded_l(px(3.0))
                         .bg(rgb(0x1f2937))
+                        .font_family("Font Awesome 6 Free")
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .hover(|style| style.bg(rgb(0x334155)).cursor_pointer())
                         .id("header-prev-button")
+                        .active(|style| style.bg(rgb(0x111827)))
                         .on_mouse_down(MouseButton::Left, |_, cx| {
-                            cx.dispatch_action(Box::new(Previous));
                             cx.stop_propagation();
-                        }),
+                        })
+                        .on_click(|_, cx| {
+                            cx.dispatch_action(Box::new(Previous));
+                        })
+                        .child(""),
                 )
                 .child(
                     div()
-                        .w(px(28.0))
+                        .w(px(30.0))
                         .h(px(26.0))
-                        .bg(rgb(0x334155))
+                        .bg(rgb(0x1f2937))
+                        .border_l(px(1.0))
+                        .border_r(px(1.0))
+                        .border_color(rgb(0x334155))
+                        .font_family("Font Awesome 6 Free")
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .hover(|style| style.bg(rgb(0x334155)).cursor_pointer())
                         .id("header-play-button")
+                        .active(|style| style.bg(rgb(0x111827)))
                         .on_mouse_down(MouseButton::Left, |_, cx| {
-                            cx.dispatch_action(Box::new(PlayPause));
                             cx.stop_propagation();
-                        }),
+                        })
+                        .on_click(|_, cx| {
+                            cx.dispatch_action(Box::new(PlayPause));
+                        })
+                        .when_else(
+                            *state == PlaybackState::Playing,
+                            |div| div.child(""),
+                            |div| div.pl(px(1.0)).child(""),
+                        ),
                 )
                 .child(
                     div()
@@ -185,11 +234,20 @@ impl RenderOnce for PlaybackSection {
                         .h(px(26.0))
                         .rounded_r(px(3.0))
                         .bg(rgb(0x1f2937))
+                        .font_family("Font Awesome 6 Free")
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .hover(|style| style.bg(rgb(0x334155)).cursor_pointer())
                         .id("header-next-button")
+                        .active(|style| style.bg(rgb(0x111827)))
                         .on_mouse_down(MouseButton::Left, |_, cx| {
-                            cx.dispatch_action(Box::new(Next));
                             cx.stop_propagation();
-                        }),
+                        })
+                        .on_click(|_, cx| {
+                            cx.dispatch_action(Box::new(Next));
+                        })
+                        .child(""),
                 ),
         )
     }
@@ -215,6 +273,7 @@ impl RenderOnce for WindowControls {
 pub struct Scrubber {
     position: Model<u64>,
     duration: Model<u64>,
+    playback_section: View<PlaybackSection>,
 }
 
 impl Scrubber {
@@ -236,6 +295,7 @@ impl Scrubber {
             Self {
                 position: position_model,
                 duration: duration_model,
+                playback_section: PlaybackSection::new(cx),
             }
         })
     }
@@ -267,7 +327,7 @@ impl Render for Scrubber {
                     .items_end()
                     .mb(px(6.0))
                     .mt(px(6.0))
-                    .child(deferred(PlaybackSection::default()))
+                    .child(deferred(self.playback_section.clone()))
                     .child(
                         div()
                             .pr(px(6.0))
