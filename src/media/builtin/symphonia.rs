@@ -10,6 +10,7 @@ use symphonia::{
         io::MediaSourceStream,
         meta::{MetadataOptions, StandardTagKey, Tag, Value, Visual},
         probe::{Hint, ProbeResult},
+        units::TimeBase,
     },
     default::get_codecs,
 };
@@ -17,8 +18,8 @@ use ux::{i24, u24};
 
 use crate::media::{
     errors::{
-        CloseError, DurationError, MetadataError, OpenError, PlaybackReadError, PlaybackStartError,
-        PlaybackStopError,
+        CloseError, FrameDurationError, MetadataError, OpenError, PlaybackReadError,
+        PlaybackStartError, PlaybackStopError, TrackDurationError,
     },
     metadata::Metadata,
     playback::{PlaybackFrame, Samples},
@@ -31,6 +32,9 @@ pub struct SymphoniaProvider {
     current_metadata: Metadata,
     current_track: u32,
     current_duration: u64,
+    current_length: Option<u64>,
+    current_position: u64,
+    current_timebase: Option<TimeBase>,
     decoder: Option<Box<dyn Decoder>>,
     pending_metadata_update: bool,
     last_image: Option<Visual>,
@@ -159,7 +163,9 @@ impl MediaProvider for SymphoniaProvider {
         };
 
         self.read_base_metadata(&mut probed);
-
+        self.current_position = 0;
+        self.current_length = None;
+        self.current_timebase = None;
         self.format = Some(probed.format);
 
         Ok(())
@@ -179,6 +185,13 @@ impl MediaProvider for SymphoniaProvider {
                 .iter()
                 .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
                 .ok_or(PlaybackStartError::NothingToPlay)?;
+
+            if let Some(frame_count) = track.codec_params.n_frames {
+                if let Some(tb) = track.codec_params.time_base {
+                    self.current_length = Some(tb.calc_time(frame_count).seconds);
+                    self.current_timebase = Some(tb);
+                }
+            }
 
             self.current_track = track.id;
 
@@ -230,6 +243,10 @@ impl MediaProvider for SymphoniaProvider {
                             let rate = decoded.spec().rate;
                             let channel_count = decoded.spec().channels.count();
                             self.current_duration = decoded.capacity() as u64;
+
+                            if let Some(tb) = &self.current_timebase {
+                                self.current_position = tb.calc_time(packet.ts()).seconds;
+                            }
 
                             match decoded {
                                 AudioBufferRef::U8(v) => {
@@ -406,11 +423,11 @@ impl MediaProvider for SymphoniaProvider {
         }
     }
 
-    fn duration_frames(&self) -> Result<u64, DurationError> {
+    fn frame_duration(&self) -> Result<u64, FrameDurationError> {
         if self.decoder.is_none() {
-            Err(DurationError::NothingOpen)
+            Err(FrameDurationError::NothingOpen)
         } else if self.current_duration == 0 {
-            Err(DurationError::NeverDecoded)
+            Err(FrameDurationError::NeverDecoded)
         } else {
             Ok(self.current_duration)
         }
@@ -439,6 +456,26 @@ impl MediaProvider for SymphoniaProvider {
             }
         } else {
             Err(MetadataError::NothingOpen)
+        }
+    }
+
+    fn duration_secs(&self) -> Result<u64, TrackDurationError> {
+        if self.decoder.is_none() {
+            Err(TrackDurationError::NothingOpen)
+        } else if self.current_length.is_none() {
+            Err(TrackDurationError::NeverStarted)
+        } else {
+            Ok(self.current_length.unwrap_or_default())
+        }
+    }
+
+    fn position_secs(&self) -> Result<u64, TrackDurationError> {
+        if self.decoder.is_none() {
+            Err(TrackDurationError::NothingOpen)
+        } else if self.current_length.is_none() {
+            Err(TrackDurationError::NeverStarted)
+        } else {
+            Ok(self.current_position)
         }
     }
 }

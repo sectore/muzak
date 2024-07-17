@@ -43,8 +43,15 @@ pub enum MetadataError {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub enum DurationError {
+pub enum FrameDurationError {
     NothingOpen,
     NeverDecoded,
+    Unknown,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum TrackDurationError {
+    NothingOpen,
+    NeverStarted,
     Unknown,
 }

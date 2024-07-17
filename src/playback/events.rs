@@ -32,7 +32,7 @@ pub enum PlaybackCommand {
     /// Jumps to the specified position in the queue.
     Jump(usize),
     /// Requests that the playback thread seek to the specified position in the current file.
-    Seek(f64),
+    Seek(u64),
     /// Requests that the playback thread set the volume to the specified level.
     SetVolume(u8),
 }
@@ -46,7 +46,10 @@ pub enum PlaybackEvent {
     StateChanged(PlaybackState),
     /// Indicates that the current file has changed. The string is the path to the new file, and
     /// the f64 is the duration of the new file in milliseconds.
-    SongChanged(String, f64),
+    SongChanged(String),
+    /// Indicates that the duration of the current file has changed. The f64 is the new duration,
+    /// in seconds.
+    DurationChanged(u64),
     /// Indicates that the queue has been updated. The vector is the new queue.
     QueueUpdated(Vec<String>),
     /// Indicates that the position in the queue has changed. The usize is the new position.
@@ -58,6 +61,6 @@ pub enum PlaybackEvent {
     /// user interface.
     AlbumArtUpdate(Option<Box<[u8]>>),
     /// Indicates that the position in the current file has changed. The f64 is the new position,
-    /// in milliseconds.
-    PositionChanged(f64),
+    /// in seconds.
+    PositionChanged(u64),
 }

@@ -4,8 +4,8 @@ use image::RgbaImage;
 
 use super::{
     errors::{
-        CloseError, DurationError, MetadataError, OpenError, PlaybackReadError, PlaybackStartError,
-        PlaybackStopError,
+        CloseError, FrameDurationError, MetadataError, OpenError, PlaybackReadError,
+        PlaybackStartError, PlaybackStopError, TrackDurationError,
     },
     metadata::Metadata,
     playback::PlaybackFrame,
@@ -66,9 +66,10 @@ pub trait MediaProvider {
     /// is a metadata-only provider, this function should return an error.
     fn read_samples(&mut self) -> Result<PlaybackFrame, PlaybackReadError>;
 
-    /// Returns the duration of the currently opened file in frames. If no file is opened, this
-    /// function should return an error.
-    fn duration_frames(&self) -> Result<u64, DurationError>;
+    /// Returns the normal duration of the PlaybackFrames returned by this provider for the current
+    /// open file. If no file is opened, an error should be returned. Note that a PlaybackFrame may
+    /// be shorter than this duration, but it should never be longer.
+    fn frame_duration(&self) -> Result<u64, FrameDurationError>;
 
     /// Returns the metadata of the currently opened file. If no file is opened, or the provider
     /// does not support metadata retrieval, this function should return an error.
@@ -82,4 +83,15 @@ pub trait MediaProvider {
     /// opened, or the provider does not support image retrieval, this function should return an
     /// error.
     fn read_image(&mut self) -> Result<Option<Box<[u8]>>, MetadataError>;
+
+    /// Returns the duration of the currently opened file in seconds. If no file is opened, or
+    /// playback has not started, this function should return an error. This function should be
+    /// available immediately after playback has started, and should not require reading any
+    /// samples.
+    fn duration_secs(&self) -> Result<u64, TrackDurationError>;
+
+    /// Returns the current playback position in seconds. If no file is opened, or playback has not
+    /// started, this function should return an error. This function should be available immediately
+    /// after playback has started, and should not require reading any samples.
+    fn position_secs(&self) -> Result<u64, TrackDurationError>;
 }

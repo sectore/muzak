@@ -102,7 +102,7 @@ impl GPUIPlaybackInterface {
             .expect("could not send tx");
     }
 
-    pub fn seek(&self, position: f64) {
+    pub fn seek(&self, position: u64) {
         self.commands_tx
             .send(PlaybackCommand::Seek(position))
             .expect("could not send tx");

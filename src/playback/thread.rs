@@ -39,6 +39,7 @@ pub struct PlaybackThread {
     format: Option<FormatInfo>,
     queue: Vec<String>,
     queue_next: usize,
+    last_timestamp: u64,
 }
 
 impl PlaybackThread {
@@ -62,6 +63,7 @@ impl PlaybackThread {
                     format: None,
                     queue: Vec::new(),
                     queue_next: 0,
+                    last_timestamp: u64::MAX,
                 };
 
                 thread.run();
@@ -168,7 +170,7 @@ impl PlaybackThread {
         // nothing to play, womp womp
     }
 
-    pub fn open(&mut self, path: &String) {
+    fn open(&mut self, path: &String) {
         if self.stream.is_none() {
             // TODO: proper error handling
             // TODO: allow the user to pick a format on supported platforms
@@ -176,24 +178,40 @@ impl PlaybackThread {
             self.stream = Some(self.device.as_mut().unwrap().open_device(format).unwrap());
         }
 
+        // TODO: handle multiple media providers
         if let Some(provider) = &mut self.media_provider {
             // TODO: proper error handling
             self.resampler = None;
             let src = std::fs::File::open(path).expect("failed to open media");
             provider.open(src, None).expect("unable to open file");
             provider.start_playback().expect("unable to start playback");
-        }
 
-        self.state = PlaybackState::Playing;
-        self.events_tx
-            .send(PlaybackEvent::SongChanged(path.clone(), 0 as f64))
-            .expect("unable to send event");
-        self.events_tx
-            .send(PlaybackEvent::StateChanged(PlaybackState::Playing))
-            .expect("unable to send event");
+            self.state = PlaybackState::Playing;
+            self.events_tx
+                .send(PlaybackEvent::SongChanged(path.clone()))
+                .expect("unable to send event");
+
+            if let Ok(duration) = provider.duration_secs() {
+                println!("Duration: {}", duration);
+                self.events_tx
+                    .send(PlaybackEvent::DurationChanged(duration))
+                    .expect("unable to send event");
+            } else {
+                println!("error getting duration for some reason");
+                self.events_tx
+                    .send(PlaybackEvent::DurationChanged(0))
+                    .expect("unable to send event");
+            }
+
+            self.update_ts();
+
+            self.events_tx
+                .send(PlaybackEvent::StateChanged(PlaybackState::Playing))
+                .expect("unable to send event");
+        }
     }
 
-    pub fn next(&mut self) {
+    fn next(&mut self) {
         if self.queue_next < self.queue.len() {
             println!(
                 "Next song: {} at {}",
@@ -214,7 +232,7 @@ impl PlaybackThread {
         }
     }
 
-    pub fn queue(&mut self, path: &String) {
+    fn queue(&mut self, path: &String) {
         let pre_len = self.queue.len();
         self.queue.push(path.clone());
 
@@ -231,7 +249,7 @@ impl PlaybackThread {
             .expect("unable to send event");
     }
 
-    pub fn queue_list(&mut self, mut paths: Vec<String>) {
+    fn queue_list(&mut self, mut paths: Vec<String>) {
         let pre_len = self.queue.len();
         let first = paths.first().cloned();
 
@@ -245,7 +263,25 @@ impl PlaybackThread {
         }
     }
 
-    pub fn play_audio(&mut self) {
+    fn update_ts(&mut self) {
+        if let Some(provider) = &self.media_provider {
+            if let Ok(timestamp) = provider.position_secs() {
+                if timestamp == self.last_timestamp {
+                    return;
+                }
+
+                println!("Seconds: {}", timestamp);
+
+                self.events_tx
+                    .send(PlaybackEvent::PositionChanged(timestamp))
+                    .expect("unable to send event");
+
+                self.last_timestamp = timestamp;
+            }
+        }
+    }
+
+    fn play_audio(&mut self) {
         if let Some(stream) = &mut self.stream {
             if let Some(provider) = &mut self.media_provider {
                 if self.resampler.is_none() {
@@ -267,7 +303,7 @@ impl PlaybackThread {
                             PlaybackReadError::DecodeFatal => panic!("fatal decoding error"),
                         },
                     };
-                    let duration = provider.duration_frames().expect("can't get duration");
+                    let duration = provider.frame_duration().expect("can't get duration");
                     let device_format = stream.get_current_format().unwrap();
 
                     self.resampler = Some(Resampler::new(
@@ -291,6 +327,8 @@ impl PlaybackThread {
                     stream
                         .submit_frame(converted)
                         .expect("failed to submit frames to stream");
+
+                    self.update_ts();
                 } else {
                     let samples = match provider.read_samples() {
                         Ok(samples) => samples,
@@ -318,6 +356,8 @@ impl PlaybackThread {
                     stream
                         .submit_frame(converted)
                         .expect("failed to submit frames to stream");
+
+                    self.update_ts();
                 }
             }
         }
