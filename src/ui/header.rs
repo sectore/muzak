@@ -44,6 +44,7 @@ impl Render for Header {
             .pr(px(-24.0))
             .child(self.info_section.clone())
             .child(self.scrubber.clone())
+            .child(WindowControls {})
     }
 }
 
@@ -270,7 +271,106 @@ impl RenderOnce for WindowControls {
 #[cfg(not(target_os = "macos"))]
 impl RenderOnce for WindowControls {
     fn render(self, _: &mut WindowContext) -> impl IntoElement {
-        div().w(px(8.0)).h_full()
+        div()
+            .flex()
+            .flex_col()
+            .font_family("Font Awesome 6 Free")
+            .border_l(px(1.0))
+            .border_color(rgb(0x1e293b))
+            .child(
+                div()
+                    .flex()
+                    .border_b(px(1.0))
+                    .border_color(rgb(0x1e293b))
+                    .child(
+                        div()
+                            .w(px(30.0))
+                            .h(px(30.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .flex_shrink_0()
+                            .text_size(px(12.0))
+                            .hover(|style| style.bg(rgb(0x334155)).cursor_pointer())
+                            .child("")
+                            .on_mouse_down(MouseButton::Left, |_, cx| {
+                                cx.stop_propagation();
+                            })
+                            .id("header-minimize")
+                            .on_click(|_, cx| cx.minimize_window()),
+                    )
+                    .child(
+                        div()
+                            .w(px(30.0))
+                            .h(px(30.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .flex_shrink_0()
+                            .hover(|style| style.bg(rgb(0x334155)).cursor_pointer())
+                            .text_size(px(12.0))
+                            .child("")
+                            .on_mouse_down(MouseButton::Left, |_, cx| {
+                                cx.stop_propagation();
+                            })
+                            .id("header-maximize")
+                            .on_click(|_, cx| cx.zoom_window()),
+                    )
+                    .child(
+                        div()
+                            .w(px(30.0))
+                            .h(px(30.0))
+                            .flex()
+                            .rounded_tr(px(6.0))
+                            .items_center()
+                            .justify_center()
+                            .flex_shrink_0()
+                            .hover(|style| style.bg(rgb(0x991b1b)).cursor_pointer())
+                            .child("")
+                            .on_mouse_down(MouseButton::Left, |_, cx| {
+                                cx.stop_propagation();
+                            })
+                            .id("header-close")
+                            .on_click(|_, cx| {
+                                cx.dispatch_action(Box::new(Quit));
+                            }),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .justify_end()
+                    .child(
+                        div()
+                            .w(px(30.0))
+                            .h(px(30.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .flex_shrink_0()
+                            .hover(|style| style.bg(rgb(0x334155)).cursor_pointer())
+                            .text_size(px(12.0))
+                            .child("")
+                            .on_mouse_down(MouseButton::Left, |_, cx| {
+                                cx.stop_propagation();
+                            }),
+                    )
+                    .child(
+                        div()
+                            .w(px(30.0))
+                            .h(px(30.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .flex_shrink_0()
+                            .text_size(px(12.0))
+                            .hover(|style| style.bg(rgb(0x334155)).cursor_pointer())
+                            .child("")
+                            .on_mouse_down(MouseButton::Left, |_, cx| {
+                                cx.stop_propagation();
+                            }),
+                    ),
+            )
     }
 }
 
@@ -316,7 +416,7 @@ impl Render for Scrubber {
             .pr(px(13.0))
             .border_l(px(1.0))
             .border_color(rgb(0x1e293b))
-            .w_full()
+            .flex_grow()
             .flex()
             .flex_col()
             .line_height(rems(1.0))
