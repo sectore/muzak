@@ -112,7 +112,7 @@ impl Render for InfoSection {
             .w(px(275.0))
             .min_w(px(275.0))
             .max_w(px(275.0))
-            .overflow_hidden()
+            .overflow_x_hidden()
             .flex_shrink_0()
             .child(
                 div()
