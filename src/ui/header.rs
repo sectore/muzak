@@ -4,10 +4,7 @@ use gpui::*;
 use image::RgbaImage;
 use prelude::FluentBuilder;
 
-use crate::{
-    media::metadata::Metadata, playback::thread::PlaybackState, ui::global_actions::Quit,
-    util::rgb_to_bgr,
-};
+use crate::{media::metadata::Metadata, playback::thread::PlaybackState, ui::global_actions::Quit};
 
 use super::{
     global_actions::{Next, PlayPause, Previous},
@@ -35,13 +32,11 @@ impl Render for Header {
             .w_full()
             .h(px(60.0))
             .bg(rgb(0x111827))
+            .border_b(px(1.0))
+            .border_color(rgb(0x1e293b))
             .on_mouse_move(|_e, cx| cx.refresh())
             .on_mouse_down(MouseButton::Left, move |_, cx| cx.start_window_move())
             .flex()
-            // I'm gonna be honest, I have no idea why this is necessary but without it, the header
-            // ends 24px short of the right edge of the window. This is probably a bug with GPUI
-            // but I'm not going to report it until I'm sure.
-            .pr(px(-24.0))
             .child(self.info_section.clone())
             .child(self.scrubber.clone())
             .child(WindowControls {})
@@ -58,10 +53,6 @@ impl Render for Header {
             .on_mouse_move(|_e, cx| cx.refresh())
             .on_mouse_down(MouseButton::Left, move |e, cx| cx.start_window_move())
             .flex()
-            // I'm gonna be honest, I have no idea why this is necessary but without it, the header
-            // ends 24px short of the right edge of the window. This is probably a bug with GPUI
-            // but I'm not going to report it until I'm sure.
-            .pr(px(-24.0))
             .child(WindowControls {})
             .child(self.info_section.clone())
             .child(self.scrubber.clone())
@@ -72,6 +63,7 @@ pub struct InfoSection {
     metadata: Model<Metadata>,
     albumart: Model<Option<RgbaImage>>,
     albumart_actual: Option<ImageSource>,
+    playback_info: PlaybackInfo,
 }
 
 impl InfoSection {
@@ -79,6 +71,12 @@ impl InfoSection {
         cx.new_view(|cx| {
             let metadata_model = cx.global::<Models>().metadata.clone();
             let albumart_model = cx.global::<Models>().albumart.clone();
+            let playback_info = cx.global::<PlaybackInfo>().clone();
+
+            cx.observe(&playback_info.playback_state, |_, _, cx| {
+                cx.notify();
+            })
+            .detach();
 
             cx.observe(&metadata_model, |_, _, cx| {
                 cx.notify();
@@ -89,6 +87,7 @@ impl InfoSection {
                 metadata: metadata_model,
                 albumart: albumart_model,
                 albumart_actual: None,
+                playback_info,
             }
         })
     }
@@ -105,47 +104,69 @@ impl Render for InfoSection {
         .detach();
 
         let metadata = self.metadata.read(cx);
+        let state = self.playback_info.playback_state.read(cx);
 
         div()
             .id("info-section")
-            .m(px(12.0))
-            .gap(px(10.0))
             .flex()
-            .w(px(200.0))
+            .w(px(275.0))
             .min_w(px(275.0))
             .max_w(px(275.0))
             .overflow_hidden()
             .flex_shrink_0()
             .child(
                 div()
-                    .id("album-art")
-                    .rounded(px(4.0))
-                    .bg(rgb(0x4b5563))
-                    .shadow_sm()
-                    .w(px(36.0))
-                    .h(px(36.0))
-                    .when(self.albumart_actual.is_some(), |div| {
-                        div.child(
-                            img(self.albumart_actual.clone().unwrap())
-                                .w(px(36.0))
-                                .h(px(36.0))
-                                .rounded(px(4.0)),
-                        )
-                    }),
-            )
-            .child(
-                div()
+                    .m(px(12.0))
+                    .gap(px(10.0))
                     .flex()
-                    .flex_col()
-                    .line_height(rems(1.0))
-                    .text_size(px(15.0))
-                    .gap_1()
                     .child(
                         div()
-                            .font_weight(FontWeight::EXTRA_BOLD)
-                            .child(metadata.artist.clone().unwrap_or("Unknown Artist".into())),
+                            .id("album-art")
+                            .rounded(px(4.0))
+                            .bg(rgb(0x4b5563))
+                            .shadow_sm()
+                            .w(px(36.0))
+                            .h(px(36.0))
+                            .when(self.albumart_actual.is_some(), |div| {
+                                div.child(
+                                    img(self.albumart_actual.clone().unwrap())
+                                        .w(px(36.0))
+                                        .h(px(36.0))
+                                        .rounded(px(4.0)),
+                                )
+                            }),
                     )
-                    .child(div().child(metadata.name.clone().unwrap_or("Unknown Track".into()))),
+                    .when_else(
+                        *state == PlaybackState::Stopped,
+                        |e| {
+                            e.child(
+                                div()
+                                    .line_height(rems(1.0))
+                                    .font_weight(FontWeight::EXTRA_BOLD)
+                                    .text_size(px(15.0))
+                                    .flex()
+                                    .h_full()
+                                    .items_center()
+                                    .child("Muzak"),
+                            )
+                        },
+                        |e| {
+                            e.child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .line_height(rems(1.0))
+                                    .text_size(px(15.0))
+                                    .gap_1()
+                                    .child(div().font_weight(FontWeight::EXTRA_BOLD).child(
+                                        metadata.artist.clone().unwrap_or("Unknown Artist".into()),
+                                    ))
+                                    .child(div().child(
+                                        metadata.name.clone().unwrap_or("Unknown Track".into()),
+                                    )),
+                            )
+                        },
+                    ),
             )
     }
 }
