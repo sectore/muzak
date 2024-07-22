@@ -8,7 +8,10 @@ use image::RgbaImage;
 
 use crate::ui::models::Models;
 
-use super::events::{DataCommand, DataEvent, ImageLayout, ImageType};
+use super::{
+    events::{DataCommand, DataEvent, ImageLayout, ImageType},
+    types::UIQueueItem,
+};
 
 /// The DataInterface trait defines the method used to create the struct that will be used to
 /// communicate between the data thread and the main thread.
@@ -48,6 +51,12 @@ impl GPUIDataInterface {
             .expect("could not send tx");
     }
 
+    pub fn get_metadata_for_queue(&self, queue: Vec<String>) {
+        self.commands_tx
+            .send(DataCommand::ReadQueueMetadata(queue))
+            .expect("could not send tx");
+    }
+
     /// Starts the broadcast loop that will read events from the data thread and update data models
     /// accordingly. This function should be called once, and will panic if called more than once.
     pub fn start_broadcast(&mut self, cx: &mut AppContext) {
@@ -55,6 +64,7 @@ impl GPUIDataInterface {
         std::mem::swap(&mut self.events_rx, &mut events_rx);
 
         let albumart_model: Model<Option<RgbaImage>> = cx.global::<Models>().albumart.clone();
+        let queue_model: Model<Vec<UIQueueItem>> = cx.global::<Models>().queue.clone();
 
         if let Some(events_rx) = events_rx {
             cx.spawn(|mut cx| async move {
@@ -83,6 +93,14 @@ impl GPUIDataInterface {
                                 }
                                 _ => todo!(),
                             },
+                            DataEvent::MetadataRead(mut items) => {
+                                queue_model
+                                    .update(&mut cx, |m, cx| {
+                                        m.append(&mut items);
+                                        cx.notify()
+                                    })
+                                    .expect("failed to update queue");
+                            }
                             _ => (),
                         }
                     }

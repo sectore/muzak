@@ -9,11 +9,12 @@ use crate::{
 
 use super::{
     arguments::parse_args_and_prepare, assets::Assets, global_actions::register_actions,
-    header::Header, models::build_models,
+    header::Header, models::build_models, queue::Queue,
 };
 
 struct WindowShadow {
     pub header: View<Header>,
+    pub queue: View<Queue>,
 }
 
 impl Render for WindowShadow {
@@ -142,7 +143,15 @@ impl Render for WindowShadow {
                     .size_full()
                     .flex()
                     .flex_col()
-                    .child(self.header.clone()),
+                    .child(self.header.clone())
+                    .child(
+                        div()
+                            .w_full()
+                            .h_full()
+                            .flex()
+                            .relative()
+                            .child(self.queue.clone()),
+                    ),
             )
     }
 }
@@ -196,14 +205,14 @@ pub fn run() {
         build_models(cx);
 
         let mut playback_interface: GPUIPlaybackInterface = PlaybackThread::start();
+        let mut data_interface: GPUIDataInterface = DataThread::start();
 
         playback_interface.start_broadcast(cx);
-        parse_args_and_prepare(&playback_interface);
+        data_interface.start_broadcast(cx);
+
+        parse_args_and_prepare(&playback_interface, &data_interface);
 
         cx.set_global(playback_interface);
-
-        let mut data_interface: GPUIDataInterface = DataThread::start();
-        data_interface.start_broadcast(cx);
         cx.set_global(data_interface);
 
         cx.open_window(
@@ -229,6 +238,7 @@ pub fn run() {
                     .detach();
                     WindowShadow {
                         header: Header::new(cx),
+                        queue: Queue::new(cx),
                     }
                 })
             },

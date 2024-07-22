@@ -44,8 +44,7 @@ pub enum PlaybackCommand {
 pub enum PlaybackEvent {
     /// Indicates that the playback state has changed.
     StateChanged(PlaybackState),
-    /// Indicates that the current file has changed. The string is the path to the new file, and
-    /// the f64 is the duration of the new file in milliseconds.
+    /// Indicates that the current file has changed. The string is the path to the new file.
     SongChanged(String),
     /// Indicates that the duration of the current file has changed. The f64 is the new duration,
     /// in seconds.

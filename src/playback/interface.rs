@@ -7,6 +7,7 @@ use gpui::{AppContext, Model};
 use image::RgbaImage;
 
 use crate::{
+    data::interface::GPUIDataInterface,
     media::metadata::Metadata,
     ui::models::{ImageEvent, Models, PlaybackInfo},
 };
@@ -66,16 +67,20 @@ impl GPUIPlaybackInterface {
             .expect("could not send tx");
     }
 
-    pub fn queue(&self, path: &str) {
+    pub fn queue(&self, path: &str, data_interface: &GPUIDataInterface) {
         self.commands_tx
             .send(PlaybackCommand::Queue(path.to_string()))
             .expect("could not send tx");
+
+        data_interface.get_metadata_for_queue(vec![path.to_string()]);
     }
 
-    pub fn queue_list(&self, paths: Vec<String>) {
+    pub fn queue_list(&self, paths: Vec<String>, data_interface: &GPUIDataInterface) {
         self.commands_tx
-            .send(PlaybackCommand::QueueList(paths))
+            .send(PlaybackCommand::QueueList(paths.clone()))
             .expect("could not send tx");
+
+        data_interface.get_metadata_for_queue(paths);
     }
 
     pub fn next(&self) {
@@ -159,6 +164,16 @@ impl GPUIPlaybackInterface {
                                         cx.notify()
                                     })
                                     .expect("failed to update playback state");
+
+                                if v == PlaybackState::Stopped {
+                                    playback_info
+                                        .current_track
+                                        .update(&mut cx, |m, cx| {
+                                            *m = None;
+                                            cx.notify()
+                                        })
+                                        .expect("failed to update current track");
+                                }
                             }
                             PlaybackEvent::PositionChanged(v) => {
                                 playback_info
@@ -177,6 +192,15 @@ impl GPUIPlaybackInterface {
                                         cx.notify()
                                     })
                                     .expect("failed to update duration");
+                            }
+                            PlaybackEvent::SongChanged(v) => {
+                                playback_info
+                                    .current_track
+                                    .update(&mut cx, |m, cx| {
+                                        *m = Some(v);
+                                        cx.notify()
+                                    })
+                                    .expect("failed to update current track");
                             }
                             _ => (),
                         }
