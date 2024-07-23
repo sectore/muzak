@@ -1,4 +1,4 @@
-use gpui::{actions, AppContext, KeyBinding, Menu, MenuItem};
+use gpui::{actions, AppContext, KeyBinding, Menu, MenuItem, SharedString};
 use tracing::{debug, info};
 
 use crate::playback::{interface::GPUIPlaybackInterface, thread::PlaybackState};
@@ -18,7 +18,7 @@ pub fn register_actions(cx: &mut AppContext) {
     cx.bind_keys([KeyBinding::new("ctrl-w", Quit, None)]);
     cx.bind_keys([KeyBinding::new("space", PlayPause, None)]);
     cx.set_menus(vec![Menu {
-        name: "Muzak",
+        name: SharedString::from("Muzak"),
         items: vec![MenuItem::action("Quit", Quit)],
     }]);
 }
