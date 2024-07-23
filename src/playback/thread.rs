@@ -155,6 +155,10 @@ impl PlaybackThread {
         }
 
         if self.state == PlaybackState::Playing {
+            if let Some(stream) = &mut self.stream {
+                stream.pause().expect("unable to pause stream");
+            }
+
             self.state = PlaybackState::Paused;
 
             self.events_tx
@@ -169,6 +173,10 @@ impl PlaybackThread {
         }
 
         if self.state == PlaybackState::Paused {
+            if let Some(stream) = &mut self.stream {
+                stream.play().expect("unable to play stream");
+            }
+
             self.state = PlaybackState::Playing;
 
             self.events_tx

@@ -12,7 +12,7 @@ use crate::{
     media::playback::{GetInnerSamples, Mute, PlaybackFrame},
 };
 use cpal::{
-    traits::{DeviceTrait, HostTrait},
+    traits::{DeviceTrait, HostTrait, StreamTrait},
     Host, SizedSample,
 };
 use rb::{RbConsumer, RbProducer, SpscRb, RB};
@@ -149,7 +149,7 @@ impl CpalDevice {
 
         Ok(Box::new(CpalStream {
             ring_buf: prod,
-            _stream: stream,
+            stream: stream,
             format,
         }))
     }
@@ -240,7 +240,7 @@ where
     T: GetInnerSamples + SizedSample + Default,
 {
     pub ring_buf: rb::Producer<T>,
-    pub _stream: cpal::Stream,
+    pub stream: cpal::Stream,
     pub format: FormatInfo,
 }
 
@@ -270,5 +270,17 @@ where
 
     fn get_current_format(&self) -> Result<&FormatInfo, InfoError> {
         Ok(&self.format)
+    }
+
+    fn play(&mut self) -> Result<(), crate::devices::errors::StateError> {
+        self.stream
+            .play()
+            .map_err(|_| crate::devices::errors::StateError::Unknown)
+    }
+
+    fn pause(&mut self) -> Result<(), crate::devices::errors::StateError> {
+        self.stream
+            .pause()
+            .map_err(|_| crate::devices::errors::StateError::Unknown)
     }
 }

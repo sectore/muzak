@@ -37,3 +37,8 @@ pub enum OpenError {
 pub enum CloseError {
     Unknown,
 }
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum StateError {
+    Unknown,
+}

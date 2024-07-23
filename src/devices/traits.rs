@@ -2,7 +2,7 @@ use crate::media::playback::{GetInnerSamples, PlaybackFrame};
 
 use super::{
     errors::{
-        CloseError, FindError, InfoError, InitializationError, ListError, OpenError,
+        CloseError, FindError, InfoError, InitializationError, ListError, OpenError, StateError,
         SubmissionError,
     },
     format::{FormatInfo, SupportedFormat},
@@ -56,4 +56,8 @@ pub trait OutputStream {
     fn needs_input(&self) -> bool;
     /// Returns the current format of the stream.
     fn get_current_format(&self) -> Result<&FormatInfo, InfoError>;
+    /// Tells the device to start playing audio.
+    fn play(&mut self) -> Result<(), StateError>;
+    /// Tells the device to stop playing audio.
+    fn pause(&mut self) -> Result<(), StateError>;
 }
