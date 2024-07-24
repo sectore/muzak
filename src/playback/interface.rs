@@ -1,9 +1,12 @@
 use std::{
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc,
+    },
     time::Duration,
 };
 
-use gpui::{AppContext, Model};
+use gpui::{AppContext, ImageData, Model};
 use image::RgbaImage;
 
 use crate::{
@@ -127,7 +130,7 @@ impl GPUIPlaybackInterface {
         std::mem::swap(&mut self.events_rx, &mut events_rx);
 
         let metadata_model: Model<Metadata> = cx.global::<Models>().metadata.clone();
-        let albumart_model: Model<Option<RgbaImage>> = cx.global::<Models>().albumart.clone();
+        let albumart_model: Model<Option<Arc<ImageData>>> = cx.global::<Models>().albumart.clone();
 
         let playback_info = cx.global::<PlaybackInfo>().clone();
 

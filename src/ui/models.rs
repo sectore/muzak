@@ -1,4 +1,6 @@
-use gpui::{AppContext, Context, EventEmitter, Global, Model};
+use std::sync::Arc;
+
+use gpui::{AppContext, Context, EventEmitter, Global, ImageData, Model};
 use image::RgbaImage;
 
 use crate::{
@@ -17,11 +19,11 @@ impl EventEmitter<Metadata> for Metadata {}
 #[derive(Debug, PartialEq, Clone)]
 pub struct ImageEvent(pub Box<[u8]>);
 
-impl EventEmitter<ImageEvent> for Option<RgbaImage> {}
+impl EventEmitter<ImageEvent> for Option<Arc<ImageData>> {}
 
 pub struct Models {
     pub metadata: Model<Metadata>,
-    pub albumart: Model<Option<RgbaImage>>,
+    pub albumart: Model<Option<Arc<ImageData>>>,
     pub queue: Model<Vec<UIQueueItem>>,
 }
 
@@ -39,7 +41,7 @@ impl Global for PlaybackInfo {}
 
 pub fn build_models(cx: &mut AppContext) {
     let metadata: Model<Metadata> = cx.new_model(|_| Metadata::default());
-    let albumart: Model<Option<RgbaImage>> = cx.new_model(|_| None);
+    let albumart: Model<Option<Arc<ImageData>>> = cx.new_model(|_| None);
     let queue: Model<Vec<UIQueueItem>> = cx.new_model(|_| Vec::new());
 
     cx.subscribe(&albumart, |_, ev, cx| {

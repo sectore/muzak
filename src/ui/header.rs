@@ -61,7 +61,7 @@ impl Render for Header {
 
 pub struct InfoSection {
     metadata: Model<Metadata>,
-    albumart: Model<Option<RgbaImage>>,
+    albumart: Model<Option<Arc<ImageData>>>,
     albumart_actual: Option<ImageSource>,
     playback_info: PlaybackInfo,
 }
@@ -98,7 +98,7 @@ impl Render for InfoSection {
         cx.observe(&self.albumart, |this, m, cx| {
             let image = m.read(cx).clone();
 
-            this.albumart_actual = image.map(|v| ImageSource::Data(Arc::new(ImageData::new(v))));
+            this.albumart_actual = image.map(|v| ImageSource::Data(v));
             cx.notify()
         })
         .detach();

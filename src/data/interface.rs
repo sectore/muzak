@@ -3,15 +3,11 @@ use std::{
     time::Duration,
 };
 
-use gpui::{AppContext, Model};
-use image::RgbaImage;
+use gpui::AppContext;
 
 use crate::ui::models::Models;
 
-use super::{
-    events::{DataCommand, DataEvent, ImageLayout, ImageType},
-    types::UIQueueItem,
-};
+use super::events::{DataCommand, DataEvent, ImageLayout, ImageType};
 
 /// The DataInterface trait defines the method used to create the struct that will be used to
 /// communicate between the data thread and the main thread.
@@ -63,8 +59,8 @@ impl GPUIDataInterface {
         let mut events_rx = None;
         std::mem::swap(&mut self.events_rx, &mut events_rx);
 
-        let albumart_model: Model<Option<RgbaImage>> = cx.global::<Models>().albumart.clone();
-        let queue_model: Model<Vec<UIQueueItem>> = cx.global::<Models>().queue.clone();
+        let albumart_model = cx.global::<Models>().albumart.clone();
+        let queue_model = cx.global::<Models>().queue.clone();
 
         if let Some(events_rx) = events_rx {
             cx.spawn(|mut cx| async move {

@@ -450,7 +450,9 @@ impl MediaProvider for SymphoniaProvider {
     fn read_image(&mut self) -> Result<Option<Box<[u8]>>, MetadataError> {
         if self.format.is_some() {
             if let Some(visual) = &self.last_image {
-                Ok(Some(visual.data.clone()))
+                let data = Ok(Some(visual.data.clone()));
+                self.last_image = None;
+                data
             } else {
                 Ok(None)
             }
