@@ -141,37 +141,34 @@ impl Render for InfoSection {
                                 )
                             }),
                     )
-                    .when_else(
-                        *state == PlaybackState::Stopped,
-                        |e| {
-                            e.child(
-                                div()
-                                    .line_height(rems(1.0))
-                                    .font_weight(FontWeight::EXTRA_BOLD)
-                                    .text_size(px(15.0))
-                                    .flex()
-                                    .h_full()
-                                    .items_center()
-                                    .child("Muzak"),
-                            )
-                        },
-                        |e| {
-                            e.child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .line_height(rems(1.0))
-                                    .text_size(px(15.0))
-                                    .gap_1()
-                                    .child(div().font_weight(FontWeight::EXTRA_BOLD).child(
-                                        metadata.artist.clone().unwrap_or("Unknown Artist".into()),
-                                    ))
-                                    .child(div().child(
-                                        metadata.name.clone().unwrap_or("Unknown Track".into()),
-                                    )),
-                            )
-                        },
-                    ),
+                    .when(*state == PlaybackState::Stopped, |e| {
+                        e.child(
+                            div()
+                                .line_height(rems(1.0))
+                                .font_weight(FontWeight::EXTRA_BOLD)
+                                .text_size(px(15.0))
+                                .flex()
+                                .h_full()
+                                .items_center()
+                                .child("Muzak"),
+                        )
+                    })
+                    .when(*state != PlaybackState::Stopped, |e| {
+                        e.child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .line_height(rems(1.0))
+                                .text_size(px(15.0))
+                                .gap_1()
+                                .child(div().font_weight(FontWeight::EXTRA_BOLD).child(
+                                    metadata.artist.clone().unwrap_or("Unknown Artist".into()),
+                                ))
+                                .child(div().child(
+                                    metadata.name.clone().unwrap_or("Unknown Track".into()),
+                                )),
+                        )
+                    }),
             )
     }
 }
@@ -253,11 +250,8 @@ impl Render for PlaybackSection {
                         .on_click(|_, cx| {
                             cx.dispatch_action(Box::new(PlayPause));
                         })
-                        .when_else(
-                            *state == PlaybackState::Playing,
-                            |div| div.child(""),
-                            |div| div.pl(px(1.0)).child(""),
-                        ),
+                        .when(*state == PlaybackState::Playing, |div| div.child(""))
+                        .when(*state != PlaybackState::Playing, |div| div.child("")),
                 )
                 .child(
                     div()
