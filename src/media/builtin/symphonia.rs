@@ -1,4 +1,7 @@
-use std::{fs::File, io::Cursor};
+use std::{
+    fs::File,
+    io::{Cursor, SeekFrom},
+};
 
 use image::RgbaImage;
 use symphonia::{
@@ -6,11 +9,11 @@ use symphonia::{
         audio::{AudioBufferRef, Signal},
         codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL},
         errors::Error,
-        formats::{FormatOptions, FormatReader},
+        formats::{FormatOptions, FormatReader, SeekMode, SeekTo},
         io::MediaSourceStream,
         meta::{MetadataOptions, StandardTagKey, Tag, Value, Visual},
         probe::{Hint, ProbeResult},
-        units::TimeBase,
+        units::{Time, TimeBase},
     },
     default::get_codecs,
 };
@@ -19,7 +22,7 @@ use ux::{i24, u24};
 use crate::media::{
     errors::{
         CloseError, FrameDurationError, MetadataError, OpenError, PlaybackReadError,
-        PlaybackStartError, PlaybackStopError, TrackDurationError,
+        PlaybackStartError, PlaybackStopError, SeekError, TrackDurationError,
     },
     metadata::Metadata,
     playback::{PlaybackFrame, Samples},
@@ -478,6 +481,32 @@ impl MediaProvider for SymphoniaProvider {
             Err(TrackDurationError::NeverStarted)
         } else {
             Ok(self.current_position)
+        }
+    }
+
+    fn seek(&mut self, time: f64) -> Result<(), SeekError> {
+        let timebase = self.current_timebase.clone();
+        if let Some(format) = &mut self.format {
+            let seek = format
+                .seek(
+                    SeekMode::Accurate,
+                    SeekTo::Time {
+                        time: Time {
+                            seconds: time.trunc() as u64,
+                            frac: time.fract(),
+                        },
+                        track_id: None,
+                    },
+                )
+                .map_err(|_| SeekError::Unknown)?;
+
+            if let Some(timebase) = timebase {
+                self.current_position = timebase.calc_time(seek.actual_ts).seconds;
+            }
+
+            Ok(())
+        } else {
+            Err(SeekError::NothingOpen)
         }
     }
 }

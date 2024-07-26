@@ -55,3 +55,9 @@ pub enum TrackDurationError {
     NeverStarted,
     Unknown,
 }
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum SeekError {
+    NothingOpen,
+    Unknown,
+}

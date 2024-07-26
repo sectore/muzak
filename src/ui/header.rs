@@ -3,8 +3,13 @@ use std::sync::Arc;
 use gpui::*;
 use image::RgbaImage;
 use prelude::FluentBuilder;
+use tracing::debug;
 
-use crate::{media::metadata::Metadata, playback::thread::PlaybackState, ui::global_actions::Quit};
+use crate::{
+    media::metadata::Metadata,
+    playback::{interface::GPUIPlaybackInterface, thread::PlaybackState},
+    ui::global_actions::Quit,
+};
 
 use super::{
     global_actions::{Next, PlayPause, Previous},
@@ -395,6 +400,8 @@ impl RenderOnce for WindowControls {
     }
 }
 
+pub struct Scrubbing;
+
 pub struct Scrubber {
     position: Model<u64>,
     duration: Model<u64>,
@@ -484,7 +491,30 @@ impl Render for Scrubber {
                             .h(px(6.0))
                             .rounded(px(3.0))
                             .bg(rgb(0x3b82f6)),
-                    ),
+                    )
+                    .id("scrubber-back")
+                    .on_mouse_down(MouseButton::Left, |_, cx| {
+                        cx.stop_propagation();
+                    })
+                    .on_drag(Scrubbing, |_, cx| cx.new_view(|_| EmptyView))
+                    .on_drag_move(move |ev: &DragMoveEvent<Scrubbing>, cx| {
+                        let interface = cx.global::<GPUIPlaybackInterface>();
+                        let relative = cx.mouse_position() - ev.bounds.origin;
+                        let relative_x = relative.x.0;
+                        let width = ev.bounds.size.width.0;
+                        let position = (relative_x / width).clamp(0.0, 1.0);
+                        let seconds = position as f64 * duration as f64;
+
+                        interface.seek(seconds);
+                    }),
             )
+    }
+}
+
+pub struct EmptyView;
+
+impl Render for EmptyView {
+    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+        div()
     }
 }

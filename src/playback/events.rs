@@ -32,7 +32,7 @@ pub enum PlaybackCommand {
     /// Jumps to the specified position in the queue.
     Jump(usize),
     /// Requests that the playback thread seek to the specified position in the current file.
-    Seek(u64),
+    Seek(f64),
     /// Requests that the playback thread set the volume to the specified level.
     SetVolume(u8),
 }

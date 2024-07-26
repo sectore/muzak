@@ -5,7 +5,7 @@ use image::RgbaImage;
 use super::{
     errors::{
         CloseError, FrameDurationError, MetadataError, OpenError, PlaybackReadError,
-        PlaybackStartError, PlaybackStopError, TrackDurationError,
+        PlaybackStartError, PlaybackStopError, SeekError, TrackDurationError,
     },
     metadata::Metadata,
     playback::PlaybackFrame,
@@ -61,6 +61,10 @@ pub trait MediaProvider {
 
     /// Informs the Provider that playback has ended and no more samples or metadata will be read.
     fn stop_playback(&mut self) -> Result<(), PlaybackStopError>;
+
+    /// Requests the Provider seek to the specified time in the current file. The time is provided
+    /// in seconds. If no file is opened, this function should return an error.
+    fn seek(&mut self, time: f64) -> Result<(), SeekError>;
 
     /// Requests the Provider provide samples for playback. If no file is opened, or the Provider
     /// is a metadata-only provider, this function should return an error.

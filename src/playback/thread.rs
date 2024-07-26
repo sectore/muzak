@@ -132,7 +132,7 @@ impl PlaybackThread {
     }
 
     pub fn command_intake(&mut self) {
-        if let Ok(command) = self.commands_rx.try_recv() {
+        while let Ok(command) = self.commands_rx.try_recv() {
             match command {
                 PlaybackCommand::Play => self.play(),
                 PlaybackCommand::Pause => self.pause(),
@@ -143,7 +143,7 @@ impl PlaybackThread {
                 PlaybackCommand::Previous => self.previous(),
                 PlaybackCommand::ClearQueue => todo!(),
                 PlaybackCommand::Jump(_) => todo!(),
-                PlaybackCommand::Seek(_) => todo!(),
+                PlaybackCommand::Seek(v) => self.seek(v),
                 PlaybackCommand::SetVolume(_) => todo!(),
             }
         }
@@ -307,6 +307,13 @@ impl PlaybackThread {
 
                 self.last_timestamp = timestamp;
             }
+        }
+    }
+
+    fn seek(&mut self, timestamp: f64) {
+        if let Some(provider) = &mut self.media_provider {
+            provider.seek(timestamp).expect("unable to seek");
+            self.update_ts();
         }
     }
 
