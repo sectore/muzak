@@ -4,17 +4,18 @@ use gpui::*;
 use prelude::FluentBuilder;
 use tracing::debug;
 
-use crate::data::types::UIQueueItem;
+use crate::{data::types::UIQueueItem, playback::interface::GPUIPlaybackInterface};
 
 use super::models::{Models, PlaybackInfo};
 
 pub struct QueueItem {
     item: UIQueueItem,
     current_track: Model<Option<String>>,
+    idx: usize,
 }
 
 impl QueueItem {
-    pub fn new(cx: &mut WindowContext, item: UIQueueItem) -> View<Self> {
+    pub fn new(cx: &mut WindowContext, item: UIQueueItem, idx: usize) -> View<Self> {
         cx.new_view(move |cx| {
             let current_track = cx.global::<PlaybackInfo>().current_track.clone();
 
@@ -26,6 +27,7 @@ impl QueueItem {
             Self {
                 item,
                 current_track,
+                idx,
             }
         })
     }
@@ -46,9 +48,17 @@ impl Render for QueueItem {
             .as_ref()
             .map(|v| ImageSource::Data(v.clone()));
 
+        let idx = self.idx;
+
+        /*debug!(
+            "Rendering queue item at index {}, eid = {:?}",
+            idx,
+            cx.entity_id()
+        );*/
+
         div()
             .w_full()
-            .id("info-section")
+            .id(ElementId::View(cx.entity_id()))
             .flex()
             .overflow_x_hidden()
             .flex_shrink_0()
@@ -124,7 +134,16 @@ impl Queue {
                 this.state =
                     ListState::new(items.len(), ListAlignment::Top, px(32.0), move |idx, cx| {
                         let item = items.get(idx).unwrap().clone();
-                        div().child(QueueItem::new(cx, item)).into_any_element()
+                        div()
+                            .child(QueueItem::new(cx, item, idx))
+                            .id(("queue-item-wrapper", idx))
+                            .on_click(move |_, cx| {
+                                debug!("Clicked on index {}", idx);
+                                cx.global::<GPUIPlaybackInterface>().jump(idx);
+                            })
+                            .hover(|div| div.bg(rgb(0x1f2937)))
+                            .active(|div| div.bg(rgb(0x030712)))
+                            .into_any_element()
                     });
                 cx.notify();
             })
@@ -159,7 +178,8 @@ impl Render for Queue {
                     .line_height(px(26.0))
                     .font_weight(FontWeight::BOLD)
                     .text_size(px(26.0))
-                    .child("Queue"),
+                    .child("Queue")
+                    .id("queue-title"),
             )
             .flex()
             .flex_col()

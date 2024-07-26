@@ -142,7 +142,7 @@ impl PlaybackThread {
                 PlaybackCommand::Next => self.next(true),
                 PlaybackCommand::Previous => self.previous(),
                 PlaybackCommand::ClearQueue => todo!(),
-                PlaybackCommand::Jump(_) => todo!(),
+                PlaybackCommand::Jump(v) => self.jump(v),
                 PlaybackCommand::Seek(v) => self.seek(v),
                 PlaybackCommand::SetVolume(_) => todo!(),
             }
@@ -314,6 +314,13 @@ impl PlaybackThread {
         if let Some(provider) = &mut self.media_provider {
             provider.seek(timestamp).expect("unable to seek");
             self.update_ts();
+        }
+    }
+
+    fn jump(&mut self, index: usize) {
+        if index < self.queue.len() {
+            self.open(&self.queue[index].clone());
+            self.queue_next = index + 1;
         }
     }
 
