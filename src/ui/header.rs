@@ -1,3 +1,5 @@
+mod scrubber;
+
 use std::sync::Arc;
 
 use gpui::*;
@@ -479,13 +481,11 @@ impl Render for Scrubber {
                     .h(px(6.0))
                     .bg(rgb(0x374151))
                     .rounded(px(3.0))
-                    .child(
-                        div()
-                            .w(relative(position as f32 / duration as f32))
-                            .h(px(6.0))
-                            .rounded(px(3.0))
-                            .bg(rgb(0x3b82f6)),
-                    )
+                    .child(div().w_full().h(px(6.0)).child(scrubber::Scrubber::new(
+                        Some(ElementId::from("scrubber")),
+                        duration,
+                        position,
+                    )))
                     .id("scrubber-back")
                     .on_mouse_down(MouseButton::Left, |_, cx| {
                         cx.stop_propagation();
