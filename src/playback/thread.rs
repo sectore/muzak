@@ -252,7 +252,11 @@ impl PlaybackThread {
     }
 
     fn previous(&mut self) {
-        if self.queue_next > 1 {
+        if self.state == PlaybackState::Stopped && !self.queue.is_empty() {
+            let track = self.queue.last().unwrap().clone();
+            self.open(&track);
+            self.queue_next = self.queue.len();
+        } else if self.queue_next > 1 {
             info!("Opening previous file in queue");
             let prev_path = self.queue[self.queue_next - 2].clone();
             self.queue_next -= 1;

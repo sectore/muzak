@@ -30,14 +30,15 @@ fn quit(_: &Quit, cx: &mut AppContext) {
 
 fn play_pause(_: &PlayPause, cx: &mut AppContext) {
     let state = cx.global::<PlaybackInfo>().playback_state.read(cx);
+    let interface = cx.global::<GPUIPlaybackInterface>();
     match state {
-        PlaybackState::Stopped => (),
+        PlaybackState::Stopped => {
+            interface.play();
+        }
         PlaybackState::Playing => {
-            let interface = cx.global::<GPUIPlaybackInterface>();
             interface.pause();
         }
         PlaybackState::Paused => {
-            let interface = cx.global::<GPUIPlaybackInterface>();
             interface.play();
         }
     }
