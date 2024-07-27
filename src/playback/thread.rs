@@ -201,6 +201,12 @@ impl PlaybackThread {
             self.stream = Some(self.device.as_mut().unwrap().open_device(format).unwrap());
         }
 
+        self.stream
+            .as_mut()
+            .unwrap()
+            .play()
+            .expect("unable to play stream");
+
         // TODO: handle multiple media providers
         if let Some(provider) = &mut self.media_provider {
             // TODO: proper error handling

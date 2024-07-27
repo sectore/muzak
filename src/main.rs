@@ -2,6 +2,7 @@ use gpui::actions;
 
 mod data;
 mod devices;
+mod library;
 mod media;
 mod playback;
 mod ui;
