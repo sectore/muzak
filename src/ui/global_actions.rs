@@ -15,7 +15,15 @@ pub fn register_actions(cx: &mut AppContext) {
     cx.on_action(previous);
     debug!("actions: {:?}", cx.all_action_names());
     debug!("action available: {:?}", cx.is_action_available(&Quit));
-    cx.bind_keys([KeyBinding::new("ctrl-w", Quit, None)]);
+    if cfg!(target_os = "macos") {
+        cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);
+        cx.bind_keys([KeyBinding::new("cmd-right", Next, None)]);
+        cx.bind_keys([KeyBinding::new("cmd-left", Previous, None)]);
+    } else {
+        cx.bind_keys([KeyBinding::new("ctrl-w", Quit, None)]);
+        cx.bind_keys([KeyBinding::new("ctrl-right", Next, None)]);
+        cx.bind_keys([KeyBinding::new("ctrl-left", Previous, None)]);
+    }
     cx.bind_keys([KeyBinding::new("space", PlayPause, None)]);
     cx.set_menus(vec![Menu {
         name: SharedString::from("Muzak"),
