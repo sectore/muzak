@@ -1,9 +1,14 @@
+use core::panic;
+use std::fs;
+
 use gpui::*;
 use prelude::FluentBuilder;
-use tracing::debug;
+use sqlx::SqlitePool;
+use tracing::{debug, error};
 
 use crate::{
     data::{interface::GPUIDataInterface, thread::DataThread},
+    library::db::create_pool,
     playback::{interface::GPUIPlaybackInterface, thread::PlaybackThread},
 };
 
@@ -195,7 +200,21 @@ pub fn find_fonts(cx: &mut AppContext) -> gpui::Result<()> {
     results
 }
 
-pub fn run() {
+struct Pool(pub SqlitePool);
+
+impl Global for Pool {}
+
+pub async fn run() {
+    let dirs = directories::ProjectDirs::from("me", "william341", "muzak")
+        .expect("couldn't find project dirs");
+    let directory = dirs.data_dir();
+    if !directory.exists() {
+        fs::create_dir(directory).expect("couldn't create data directory");
+    }
+    let file = directory.join("library.db");
+
+    let pool = create_pool(file).await;
+
     App::new().with_assets(Assets).run(|cx: &mut AppContext| {
         let bounds = Bounds::centered(None, size(px(1024.0), px(768.0)), cx);
         find_fonts(cx).expect("unable to load fonts");
@@ -203,6 +222,13 @@ pub fn run() {
         register_actions(cx);
 
         build_models(cx);
+
+        if let Ok(pool) = pool {
+            cx.set_global(Pool(pool));
+        } else {
+            error!("unable to create database pool: {}", pool.err().unwrap());
+            panic!("fatal: unable to create database pool");
+        }
 
         let mut playback_interface: GPUIPlaybackInterface = PlaybackThread::start();
         let mut data_interface: GPUIDataInterface = DataThread::start();

@@ -8,9 +8,10 @@ mod playback;
 mod ui;
 mod util;
 
-fn main() {
+#[async_std::main]
+async fn main() {
     tracing_subscriber::fmt::init();
 
     tracing::info!("Starting application");
-    crate::ui::app::run();
+    crate::ui::app::run().await;
 }
