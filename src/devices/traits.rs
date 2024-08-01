@@ -1,4 +1,4 @@
-use crate::media::playback::{GetInnerSamples, PlaybackFrame};
+use crate::media::playback::PlaybackFrame;
 
 use super::{
     errors::{

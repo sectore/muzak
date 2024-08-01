@@ -1,4 +1,4 @@
-use std::{ops::Range, sync::mpsc::Sender};
+use std::ops::Range;
 
 use crate::{
     devices::{
@@ -135,7 +135,7 @@ fn create_stream_internal<
 
     let stream = device
         .build_output_stream(
-            &config,
+            config,
             move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
                 let written = cons.read(data).unwrap_or(0);
 

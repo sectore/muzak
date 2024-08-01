@@ -1,6 +1,5 @@
 use std::fs::File;
 
-use image::RgbaImage;
 
 use super::{
     errors::{

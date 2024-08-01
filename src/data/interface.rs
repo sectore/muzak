@@ -97,7 +97,6 @@ impl GPUIDataInterface {
                                     })
                                     .expect("failed to update queue");
                             }
-                            _ => (),
                         }
                     }
 

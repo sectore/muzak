@@ -1,4 +1,3 @@
-use gpui::actions;
 
 mod data;
 mod devices;

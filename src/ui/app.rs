@@ -96,10 +96,7 @@ impl Render for WindowShadow {
                         let size = cx.window_bounds().get_bounds().size;
                         let pos = e.position;
 
-                        match resize_edge(pos, shadow_size, size) {
-                            Some(edge) => cx.start_window_resize(edge),
-                            None => (),
-                        };
+                        if let Some(edge) = resize_edge(pos, shadow_size, size) { cx.start_window_resize(edge) };
                     }),
             })
             .size_full()

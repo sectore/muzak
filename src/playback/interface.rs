@@ -7,7 +7,6 @@ use std::{
 };
 
 use gpui::{AppContext, ImageData, Model};
-use image::RgbaImage;
 
 use crate::{
     data::interface::GPUIDataInterface,

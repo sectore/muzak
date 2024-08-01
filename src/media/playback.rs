@@ -231,9 +231,7 @@ impl TryFrom<Samples> for Vec<Vec<bool>> {
     type Error = SampleFromError;
 
     fn try_from(value: Samples) -> Result<Self, Self::Error> {
-        match value {
-            _ => Err(SampleFromError::WrongFormat),
-        }
+        Err(SampleFromError::WrongFormat)
     }
 }
 

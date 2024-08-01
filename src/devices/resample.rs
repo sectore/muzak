@@ -122,7 +122,7 @@ where
 {
     fn sample_from(value: T) -> Self {
         let a: f64 = T::sample_into(value);
-        return U::sample_from(a);
+        U::sample_from(a)
     }
 }
 
@@ -192,7 +192,7 @@ impl Resampler {
         target_format: &FormatInfo,
     ) -> PlaybackFrame {
         if target_format.sample_rate != frame.rate {
-            let mut source: Vec<Vec<f32>> = convert_samples(frame.samples);
+            let source: Vec<Vec<f32>> = convert_samples(frame.samples);
 
             let resampled = if source[0].len() < self.duration as usize {
                 self.resampler

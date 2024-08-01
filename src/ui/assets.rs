@@ -11,7 +11,7 @@ impl AssetSource for Assets {
     fn load(&self, path: &str) -> gpui::Result<Option<std::borrow::Cow<'static, [u8]>>> {
         Ok(Self::get(path)
             .map(|f| Some(f.data))
-            .expect(format!("invalid asset at {}", path).as_str()))
+            .unwrap_or_else(|| panic!("invalid asset at {}", path)))
     }
 
     fn list(&self, path: &str) -> gpui::Result<Vec<SharedString>> {

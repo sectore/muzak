@@ -1,4 +1,3 @@
-use image::RgbaImage;
 
 use crate::media::metadata::Metadata;
 

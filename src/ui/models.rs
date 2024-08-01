@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
 use gpui::{AppContext, Context, EventEmitter, Global, ImageData, Model};
-use image::RgbaImage;
-use sqlx::SqlitePool;
 use tracing::debug;
 
 use crate::{

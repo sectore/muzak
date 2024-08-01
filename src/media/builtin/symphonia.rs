@@ -1,9 +1,5 @@
-use std::{
-    fs::File,
-    io::{Cursor, SeekFrom},
-};
+use std::fs::File;
 
-use image::RgbaImage;
 use symphonia::{
     core::{
         audio::{AudioBufferRef, Signal},
@@ -485,7 +481,7 @@ impl MediaProvider for SymphoniaProvider {
     }
 
     fn seek(&mut self, time: f64) -> Result<(), SeekError> {
-        let timebase = self.current_timebase.clone();
+        let timebase = self.current_timebase;
         if let Some(format) = &mut self.format {
             let seek = format
                 .seek(

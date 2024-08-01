@@ -68,7 +68,7 @@ impl Element for Scrubber {
         cx: &mut WindowContext,
     ) {
         let progress = self.position as f32 / self.duration as f32;
-        let mut inner_bounds = bounds.clone();
+        let mut inner_bounds = bounds;
         inner_bounds.size.width = bounds.size.width * progress;
 
         cx.paint_quad(quad(
@@ -87,7 +87,7 @@ impl Element for Scrubber {
             rgb(0x000000),
         ));
 
-        let cloned_bounds = bounds.clone();
+        let cloned_bounds = bounds;
         let duration = self.duration;
 
         cx.on_mouse_event(move |ev: &MouseDownEvent, _, cx| {

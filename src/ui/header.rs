@@ -3,9 +3,7 @@ mod scrubber;
 use std::sync::Arc;
 
 use gpui::*;
-use image::RgbaImage;
 use prelude::FluentBuilder;
-use tracing::debug;
 
 use crate::{
     media::metadata::Metadata,
@@ -105,7 +103,7 @@ impl Render for InfoSection {
         cx.observe(&self.albumart, |this, m, cx| {
             let image = m.read(cx).clone();
 
-            this.albumart_actual = image.map(|v| ImageSource::Data(v));
+            this.albumart_actual = image.map(ImageSource::Data);
             cx.notify()
         })
         .detach();

@@ -1,5 +1,4 @@
 use std::{
-    hash::{Hash, Hasher},
     io::Cursor,
     sync::{
         mpsc::{Receiver, Sender},
@@ -166,7 +165,7 @@ impl DataThread {
                 .read_image()
                 .ok()
                 .flatten()
-                .map(|v| {
+                .and_then(|v| {
                     // we do this because we do not want to be storing entire encoded images
                     // long-term, collisions don't particuarly matter here so the benefits outweigh
                     // the tradeoffs
@@ -192,8 +191,7 @@ impl DataThread {
 
                         Some(value)
                     }
-                })
-                .flatten();
+                });
 
             items.push(UIQueueItem {
                 metadata,
@@ -210,10 +208,10 @@ impl DataThread {
         let keys: Vec<u64> = self.image_cache.keys().cloned().collect();
 
         for key in keys {
-            let value = self.image_cache.get(&key).clone().unwrap();
+            let value = self.image_cache.get(&key).unwrap();
 
             // no clue how this could possibly be less than 2 but it doesn't hurt to check
-            if Arc::<gpui::ImageData>::strong_count(&value) <= 2 {
+            if Arc::<gpui::ImageData>::strong_count(value) <= 2 {
                 debug!("evicting {}", key);
                 self.image_cache.remove(&key);
             }

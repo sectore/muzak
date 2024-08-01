@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use gpui::ImageData;
-use image::RgbaImage;
 
 use super::types::UIQueueItem;
 
