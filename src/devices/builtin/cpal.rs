@@ -1,10 +1,10 @@
-use std::ops::Range;
+use std::{ops::Range, sync::mpsc::Sender};
 
 use crate::{
     devices::{
         errors::{
             CloseError, FindError, InfoError, InitializationError, ListError, OpenError,
-            SubmissionError,
+            ResetError, StateError, SubmissionError,
         },
         format::{BufferSize, ChannelSpec, FormatInfo, SampleFormat, SupportedFormat},
         traits::{Device, DeviceProvider, OutputStream},
@@ -15,7 +15,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Host, SizedSample,
 };
-use rb::{RbConsumer, RbProducer, SpscRb, RB};
+use rb::{Consumer, Producer, RbConsumer, RbProducer, SpscRb, RB};
 
 pub struct CpalProvider {
     host: Host,
@@ -115,6 +115,40 @@ where
     result
 }
 
+enum CpalDeviceCommand<T>
+where
+    T: GetInnerSamples + SizedSample + Default,
+{
+    ChangeBuffer(Consumer<T>),
+}
+
+fn create_stream_internal<
+    T: SizedSample + GetInnerSamples + Default + Send + Sized + 'static + Mute,
+>(
+    device: &cpal::Device,
+    config: &cpal::StreamConfig,
+    buffer_size: usize,
+) -> Result<(cpal::Stream, Producer<T>), OpenError> {
+    let rb: SpscRb<T> = SpscRb::new(buffer_size);
+    let cons = rb.consumer();
+    let prod = rb.producer();
+
+    let stream = device
+        .build_output_stream(
+            &config,
+            move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
+                let written = cons.read(data).unwrap_or(0);
+
+                data[written..].iter_mut().for_each(|v| *v = T::muted())
+            },
+            move |_| {},
+            None,
+        )
+        .map_err(|_| OpenError::Unknown)?;
+
+    Ok((stream, prod))
+}
+
 impl CpalDevice {
     fn create_stream<T: SizedSample + GetInnerSamples + Default + Send + Sized + 'static + Mute>(
         &mut self,
@@ -129,28 +163,16 @@ impl CpalDevice {
         };
 
         let buffer_size = ((200 * config.sample_rate.0 as usize) / 1000) * channels as usize;
-        let rb: SpscRb<T> = SpscRb::new(buffer_size);
-        let cons = rb.consumer();
-        let prod = rb.producer();
 
-        let stream = self
-            .device
-            .build_output_stream(
-                &config,
-                move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
-                    let written = cons.read(data).unwrap_or(0);
-
-                    data[written..].iter_mut().for_each(|v| *v = T::muted())
-                },
-                move |_| {},
-                None,
-            )
-            .map_err(|_| OpenError::Unknown)?;
+        let (stream, prod) = create_stream_internal::<T>(&self.device, &config, buffer_size)?;
 
         Ok(Box::new(CpalStream {
             ring_buf: prod,
-            stream: stream,
+            stream,
             format,
+            config,
+            buffer_size,
+            device: self.device.clone(),
         }))
     }
 }
@@ -239,14 +261,17 @@ struct CpalStream<T>
 where
     T: GetInnerSamples + SizedSample + Default,
 {
-    pub ring_buf: rb::Producer<T>,
+    pub ring_buf: Producer<T>,
     pub stream: cpal::Stream,
+    pub config: cpal::StreamConfig,
+    pub device: cpal::Device,
     pub format: FormatInfo,
+    pub buffer_size: usize,
 }
 
 impl<T> OutputStream for CpalStream<T>
 where
-    T: GetInnerSamples + SizedSample + Default,
+    T: GetInnerSamples + SizedSample + Default + Send + 'static + Mute,
 {
     fn submit_frame(&mut self, frame: PlaybackFrame) -> Result<(), SubmissionError> {
         let samples = T::inner(frame.samples);
@@ -272,15 +297,22 @@ where
         Ok(&self.format)
     }
 
-    fn play(&mut self) -> Result<(), crate::devices::errors::StateError> {
-        self.stream
-            .play()
-            .map_err(|_| crate::devices::errors::StateError::Unknown)
+    fn play(&mut self) -> Result<(), StateError> {
+        self.stream.play().map_err(|_| StateError::Unknown)
     }
 
-    fn pause(&mut self) -> Result<(), crate::devices::errors::StateError> {
-        self.stream
-            .pause()
-            .map_err(|_| crate::devices::errors::StateError::Unknown)
+    fn pause(&mut self) -> Result<(), StateError> {
+        self.stream.pause().map_err(|_| StateError::Unknown)
+    }
+
+    fn reset(&mut self) -> Result<(), ResetError> {
+        let (stream, prod) =
+            create_stream_internal::<T>(&self.device, &self.config, self.buffer_size)
+                .map_err(|_| ResetError::Unknown)?;
+
+        self.stream = stream;
+        self.ring_buf = prod;
+
+        Ok(())
     }
 }

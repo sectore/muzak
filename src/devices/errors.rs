@@ -42,3 +42,8 @@ pub enum CloseError {
 pub enum StateError {
     Unknown,
 }
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum ResetError {
+    Unknown,
+}

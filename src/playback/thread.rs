@@ -42,6 +42,7 @@ pub struct PlaybackThread {
     queue: Vec<String>,
     queue_next: usize,
     last_timestamp: u64,
+    pending_reset: bool,
 }
 
 impl PlaybackThread {
@@ -66,6 +67,7 @@ impl PlaybackThread {
                     queue: Vec::new(),
                     queue_next: 0,
                     last_timestamp: u64::MAX,
+                    pending_reset: false,
                 };
 
                 thread.run();
@@ -174,6 +176,11 @@ impl PlaybackThread {
 
         if self.state == PlaybackState::Paused {
             if let Some(stream) = &mut self.stream {
+                if self.pending_reset {
+                    stream.reset().expect("unable to reset stream");
+                    self.pending_reset = false;
+                }
+
                 stream.play().expect("unable to play stream");
             }
 
@@ -200,6 +207,12 @@ impl PlaybackThread {
             let format = self.device.as_ref().unwrap().get_default_format().unwrap();
             self.stream = Some(self.device.as_mut().unwrap().open_device(format).unwrap());
         }
+
+        self.stream
+            .as_mut()
+            .unwrap()
+            .reset()
+            .expect("unable to reset device");
 
         self.stream
             .as_mut()
@@ -323,6 +336,7 @@ impl PlaybackThread {
     fn seek(&mut self, timestamp: f64) {
         if let Some(provider) = &mut self.media_provider {
             provider.seek(timestamp).expect("unable to seek");
+            self.pending_reset = true;
             self.update_ts();
         }
     }

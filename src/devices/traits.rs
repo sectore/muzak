@@ -2,8 +2,8 @@ use crate::media::playback::{GetInnerSamples, PlaybackFrame};
 
 use super::{
     errors::{
-        CloseError, FindError, InfoError, InitializationError, ListError, OpenError, StateError,
-        SubmissionError,
+        CloseError, FindError, InfoError, InitializationError, ListError, OpenError, ResetError,
+        StateError, SubmissionError,
     },
     format::{FormatInfo, SupportedFormat},
 };
@@ -60,4 +60,8 @@ pub trait OutputStream {
     fn play(&mut self) -> Result<(), StateError>;
     /// Tells the device to stop playing audio.
     fn pause(&mut self) -> Result<(), StateError>;
+    /// Tells the device to reset the buffer. This is useful for restarting playback after a pause,
+    /// in order to avoid playing stale data (e.g. if a user pauses before seeking or changing
+    /// tracks).
+    fn reset(&mut self) -> Result<(), ResetError>;
 }
