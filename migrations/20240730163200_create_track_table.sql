@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS track (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     genres TEXT,
     tags TEXT,
+    location TEXT NOT NULL,
     FOREIGN KEY (album_id) REFERENCES album (id),
     FOREIGN KEY (artist_id) REFERENCES artist (id)
 )

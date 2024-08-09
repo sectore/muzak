@@ -1,6 +1,5 @@
 use std::fs::File;
 
-
 use super::{
     errors::{
         CloseError, FrameDurationError, MetadataError, OpenError, PlaybackReadError,
@@ -22,14 +21,21 @@ pub trait MediaPlugin: MediaProvider {
     /// then the mime-type should be listed as `application/<file extension>`.
     const SUPPORTED_MIMETYPES: &'static [&'static str];
 
-    // Whether the plugin provides metadata.
+    /// Whether the plugin provides metadata.
     const PROVIDES_METADATA: bool;
-    // Whether the plugin provides decoding.
+    /// Whether the plugin provides decoding.
     const PROVIDES_DECODING: bool;
-    // Whether the plugin should be used for metadata regardless of whether or not it is the
-    // current decoding plugin. This should *always* be true for metadata-only plugins, otherwise
-    // they will not be used.
+    /// Whether the plugin should be used for metadata regardless of whether or not it is the
+    /// current decoding plugin. This should *always* be true for metadata-only plugins, otherwise
+    /// they will not be used.
     const ALWAYS_CHECK_METADATA: bool;
+
+    /// What file extensions the plugin supports. This is used to determine if the plugin should be
+    /// used for indexing a given file, and not for decoding (which is determined by the
+    /// mime-type).
+    const SUPPORTED_EXTENSIONS: &'static [&'static str];
+    /// Whether or not the plugin should be used for library indexing.
+    const INDEXING_SUPPORTED: bool;
 }
 
 /// The MediaProvider trait defines the methods used to interact with a media provider. A media

@@ -525,4 +525,8 @@ impl MediaPlugin for SymphoniaProvider {
     const PROVIDES_DECODING: bool = true;
     const PROVIDES_METADATA: bool = true;
     const ALWAYS_CHECK_METADATA: bool = false;
+
+    const SUPPORTED_EXTENSIONS: &'static [&'static str] =
+        &["ogg", "aac", "flac", "wav", "mp3", "m4a", "aiff"];
+    const INDEXING_SUPPORTED: bool = true;
 }
