@@ -1,6 +1,6 @@
 use std::{
     sync::mpsc::{Receiver, Sender},
-    thread::sleep,
+    thread::{self, sleep},
 };
 
 use tracing::{debug, info};
@@ -51,7 +51,7 @@ impl PlaybackThread {
         let (commands_tx, commands_rx) = std::sync::mpsc::channel();
         let (events_tx, events_rx) = std::sync::mpsc::channel();
 
-        std::thread::Builder::new()
+        let thread = std::thread::Builder::new()
             .name("playback".to_string())
             .spawn(move || {
                 let mut thread = PlaybackThread {
@@ -208,11 +208,13 @@ impl PlaybackThread {
             self.stream = Some(self.device.as_mut().unwrap().open_device(format).unwrap());
         }
 
-        self.stream
-            .as_mut()
-            .unwrap()
-            .reset()
-            .expect("unable to reset device");
+        if (self.state == PlaybackState::Paused) {
+            self.stream
+                .as_mut()
+                .unwrap()
+                .reset()
+                .expect("unable to reset device");
+        }
 
         self.stream
             .as_mut()
