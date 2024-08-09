@@ -8,7 +8,10 @@ use tracing::{debug, error};
 
 use crate::{
     data::{interface::GPUIDataInterface, thread::DataThread},
-    library::db::create_pool,
+    library::{
+        db::create_pool,
+        scan::{ScanInterface, ScanThread},
+    },
     playback::{interface::GPUIPlaybackInterface, thread::PlaybackThread},
 };
 
@@ -96,7 +99,9 @@ impl Render for WindowShadow {
                         let size = cx.window_bounds().get_bounds().size;
                         let pos = e.position;
 
-                        if let Some(edge) = resize_edge(pos, shadow_size, size) { cx.start_window_resize(edge) };
+                        if let Some(edge) = resize_edge(pos, shadow_size, size) {
+                            cx.start_window_resize(edge)
+                        };
                     }),
             })
             .size_full()
@@ -221,6 +226,9 @@ pub async fn run() {
         build_models(cx);
 
         if let Ok(pool) = pool {
+            let mut scan_interface: ScanInterface = ScanThread::start(pool.clone());
+            scan_interface.scan();
+            // TODO: start scan broadcast
             cx.set_global(Pool(pool));
         } else {
             error!("unable to create database pool: {}", pool.err().unwrap());
