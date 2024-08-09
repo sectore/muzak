@@ -9,7 +9,8 @@ use std::{
 
 use ahash::{AHashMap, RandomState};
 use gpui::ImageData;
-use image::imageops::thumbnail;
+use image::{imageops::thumbnail, Delay, Frame};
+use smallvec::SmallVec;
 use tracing::{debug, warn};
 
 use crate::{
@@ -116,7 +117,9 @@ impl DataThread {
 
         self.events_tx
             .send(DataEvent::ImageDecoded(
-                Arc::new(ImageData::new(thumbnail(&image, 80, 80))),
+                Arc::new(ImageData::new(SmallVec::from_vec(vec![Frame::new(
+                    thumbnail(&image, 80, 80),
+                )]))),
                 image_type,
             ))
             .expect("could not send event");
@@ -186,7 +189,9 @@ impl DataThread {
 
                         rgb_to_bgr(&mut image);
 
-                        let value = Arc::new(ImageData::new(thumbnail(&image, 80, 80)));
+                        let value = Arc::new(ImageData::new(SmallVec::from_vec(vec![Frame::new(
+                            thumbnail(&image, 80, 80),
+                        )])));
                         self.image_cache.insert(key, value.clone());
 
                         Some(value)
