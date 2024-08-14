@@ -1,7 +1,15 @@
-use std::{borrow::BorrowMut, fs, path::PathBuf, sync::mpsc};
+use std::{
+    borrow::BorrowMut,
+    fs::{self, File},
+    io::{BufReader, Write},
+    path::PathBuf,
+    sync::mpsc,
+    time::SystemTime,
+};
 
 use ahash::AHashMap;
 use async_std::task;
+use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use tracing::{debug, error, info, warn};
 
@@ -71,6 +79,8 @@ pub struct ScanThread {
     to_process: Vec<PathBuf>,
     scan_state: ScanState,
     provider_table: Vec<(&'static [&'static str], Box<dyn MediaProvider>)>,
+    scan_record: AHashMap<PathBuf, u64>,
+    scan_record_path: Option<PathBuf>,
 }
 
 fn build_provider_table() -> Vec<(&'static [&'static str], Box<dyn MediaProvider>)> {
@@ -137,6 +147,8 @@ impl ScanThread {
                     scan_state: ScanState::Idle,
                     provider_table: build_provider_table(),
                     base_paths: retrieve_base_paths(),
+                    scan_record: AHashMap::new(),
+                    scan_record_path: None,
                 };
 
                 thread.run();
@@ -147,11 +159,38 @@ impl ScanThread {
     }
 
     fn run(&mut self) {
+        let dirs = directories::ProjectDirs::from("me", "william341", "muzak")
+            .expect("couldn't find project dirs");
+        let directory = dirs.data_dir();
+        if !directory.exists() {
+            fs::create_dir(directory).expect("couldn't create data directory");
+        }
+        let file_path = directory.join("scan_record.json");
+
+        if file_path.exists() {
+            let file = File::open(&file_path);
+
+            if let Ok(file) = file {
+                let reader = BufReader::new(file);
+
+                match serde_json::from_reader(reader) {
+                    Ok(scan_record) => {
+                        self.scan_record = scan_record;
+                    }
+                    Err(e) => {
+                        error!("could not read scan record: {:?}", e);
+                        error!("scanning will be slow until the scan record is rebuilt");
+                    }
+                }
+            }
+        }
+
+        self.scan_record_path = Some(file_path);
+
         loop {
             self.read_commands();
 
-            // TODO: cache modification dates and file names, and only scan files that are new or
-            // have been modified since the last scan
+            // TODO: clear out old files if they've been deleted or moved
             // TODO: connect to user interface to display progress
             if self.scan_state == ScanState::Discovering {
                 self.discover();
@@ -190,11 +229,28 @@ impl ScanThread {
         }
     }
 
-    fn file_is_scannable(&self, path: &PathBuf) -> bool {
+    fn file_is_scannable(&mut self, path: &PathBuf) -> bool {
+        let timestamp = match fs::metadata(path) {
+            Ok(metadata) => metadata
+                .modified()
+                .unwrap()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            Err(_) => return false,
+        };
+
         for (exts, _) in self.provider_table.iter() {
             let x = file_is_scannable_with_provider(path, exts);
 
             if x {
+                if let Some(last_scan) = self.scan_record.get(path) {
+                    if *last_scan == timestamp {
+                        return false;
+                    }
+                }
+
+                self.scan_record.insert(path.clone(), timestamp);
                 return true;
             }
         }
@@ -382,9 +438,25 @@ impl ScanThread {
         None
     }
 
+    fn write_scan_record(&self) {
+        if let Some(path) = self.scan_record_path.as_ref() {
+            let mut file = File::create(path).unwrap();
+            let data = serde_json::to_string(&self.scan_record).unwrap();
+            if let Err(err) = file.write_all(data.as_bytes()) {
+                error!("Could not write scan record: {:?}", err);
+                error!("Scan record will not be saved, this may cause rescans on restart");
+            } else {
+                info!("Scan record written to {:?}", path);
+            }
+        } else {
+            error!("No scan record path set, scan record will not be saved");
+        }
+    }
+
     fn scan(&mut self) {
         if self.to_process.is_empty() {
-            info!("Scan complete");
+            info!("Scan complete, writing scan record and stopping");
+            self.write_scan_record();
             self.scan_state = ScanState::Idle;
             return;
         }

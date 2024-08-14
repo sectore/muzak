@@ -9,8 +9,6 @@ CREATE TABLE IF NOT EXISTS track (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     genres TEXT,
     tags TEXT,
-    location TEXT NOT NULL,
+    location TEXT NOT NULL UNIQUE,
     FOREIGN KEY (album_id) REFERENCES album (id)
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS track_title_album_id_idx ON track (title, album_id);
