@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 #[derive(sqlx::FromRow)]
 pub struct Artist {
     pub id: i64,
-    pub name: String,
-    pub name_sortable: String,
+    pub name: Option<String>,
+    pub name_sortable: Option<String>,
     #[sqlx(default)]
     pub bio: Option<String>,
     pub creation_date: chrono::NaiveDateTime,

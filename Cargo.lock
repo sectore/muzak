@@ -2972,6 +2972,7 @@ name = "muzak"
 version = "0.1.0"
 dependencies = [
  "ahash",
+ "anyhow",
  "async-std",
  "bitflags 2.6.0",
  "chrono",
