@@ -65,6 +65,7 @@ impl ScanInterface {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ScanState {
     Idle,
+    Cleanup,
     Discovering,
     Scanning,
 }
@@ -192,12 +193,20 @@ impl ScanThread {
 
             // TODO: clear out old files if they've been deleted or moved
             // TODO: connect to user interface to display progress
-            if self.scan_state == ScanState::Discovering {
-                self.discover();
-            } else if self.scan_state == ScanState::Scanning {
-                self.scan();
-            } else {
-                std::thread::sleep(std::time::Duration::from_millis(100));
+            // TODO: start file watcher to update db automatically when files are added or removed
+            match self.scan_state {
+                ScanState::Idle => {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                ScanState::Cleanup => {
+                    self.cleanup();
+                }
+                ScanState::Discovering => {
+                    self.discover();
+                }
+                ScanState::Scanning => {
+                    self.scan();
+                }
             }
         }
     }
@@ -208,7 +217,7 @@ impl ScanThread {
                 ScanCommand::Scan => {
                     if self.scan_state == ScanState::Idle {
                         self.discovered = self.base_paths.clone();
-                        self.scan_state = ScanState::Discovering;
+                        self.scan_state = ScanState::Cleanup;
                     }
                 }
                 ScanCommand::Stop => {
@@ -469,5 +478,34 @@ impl ScanThread {
         } else {
             warn!("Could not read metadata for file: {:?}", path);
         }
+    }
+
+    async fn delete_track(&mut self, path: &PathBuf) {
+        debug!("track deleted or moved: {:?}", path);
+        let result = sqlx::query(include_str!("../../queries/scan/delete_track.sql"))
+            .bind(path.to_str())
+            .execute(&self.pool)
+            .await;
+
+        if let Err(e) = result {
+            error!("Database error while deleting track: {:?}", e);
+        } else {
+            self.scan_record.remove(path);
+        }
+    }
+
+    // This is done in one shot because it's required for data integrity
+    // Cleanup cannot be cancelled
+    fn cleanup(&mut self) {
+        self.scan_record
+            .clone()
+            .iter()
+            .filter(|v| !v.0.exists())
+            .map(|v| v.0)
+            .for_each(|v| {
+                task::block_on(self.delete_track(&v));
+            });
+
+        self.scan_state = ScanState::Discovering;
     }
 }
