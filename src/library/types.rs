@@ -41,8 +41,6 @@ pub struct Track {
     #[sqlx(default)]
     pub album_id: Option<i64>,
     #[sqlx(default)]
-    pub artist_id: Option<i64>,
-    #[sqlx(default)]
     pub track_number: Option<i32>,
     #[sqlx(default)]
     pub disc_number: Option<i32>,
