@@ -22,6 +22,12 @@ pub trait TableData: Sized {
     /// with the other table properties.
     fn get_column_names() -> &'static [&'static str];
 
+    /// Retrieves the names of the columns in the table used to get data for tiles.
+    ///
+    /// The strings in this slice are used to retrieve column data and the order must be consistent
+    /// with the other table properties.
+    fn get_tile_names() -> &'static [&'static str];
+
     /// Retrieves the rows of the table. The rows are returned as a vector of identifiers, which
     /// can be used to retrieve the full row data. The sort parameter can be used to specify the
     /// sorting order of the rows.
@@ -32,6 +38,8 @@ pub trait TableData: Sized {
     /// identify the row to retrieve.
     fn get_row(cx: &mut App, id: Self::Identifier) -> anyhow::Result<Option<Arc<Self>>>;
 
+    fn get_tile(cx: &mut App, id: Self::Identifier) -> anyhow::Result<Option<Arc<Self>>>;
+
     /// Retrieves a column from the row. The column parameter is one of the column names returned
     /// by get_column_names(), and is used to determine which column to retrieve.
     fn get_column(&self, cx: &mut App, column: &'static str) -> Option<SharedString>;
@@ -41,7 +49,10 @@ pub trait TableData: Sized {
     fn has_images() -> bool;
 
     /// Retrieves the associated image for the row.
-    fn get_image(&self) -> Option<Arc<RenderImage>>;
+    fn get_thumb(&self) -> Option<Arc<RenderImage>>;
+
+    /// Retrieves image bytes for the row.
+    fn get_image(&self) -> &Option<Box<[u8]>>;
 
     /// Retrieves the default column widths for the table.
     fn default_column_widths() -> Vec<f32>;

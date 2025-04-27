@@ -5,7 +5,7 @@ use gpui::*;
 use crate::{
     library::{scan::ScanEvent, types::Album},
     ui::{
-        components::table::{Table, TableEvent},
+        components::table::{Table, TableEvent, TableLayout},
         models::Models,
     },
 };
@@ -15,6 +15,7 @@ use super::ViewSwitchMessage;
 #[derive(Clone)]
 pub struct AlbumView {
     table: Entity<Table<Album>>,
+    layout: Entity<TableLayout>,
 }
 
 impl AlbumView {
@@ -30,7 +31,11 @@ impl AlbumView {
                     .update(cx, |_, cx| cx.emit(ViewSwitchMessage::Release(id.0 as i64)))
             });
 
-            let table = Table::new(cx, Some(handler));
+            // TODO: Switch layout
+            // let layout = cx.new(|_| TableLayout::Row);
+            let layout = cx.new(|_| TableLayout::Tiles(3));
+            let current_layout = layout.read(cx).clone();
+            let table = Table::new(cx, Some(handler), current_layout);
 
             let table_clone = table.clone();
 
@@ -50,7 +55,7 @@ impl AlbumView {
             })
             .detach();
 
-            AlbumView { table }
+            AlbumView { table, layout }
         })
     }
 }

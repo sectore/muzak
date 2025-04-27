@@ -44,6 +44,7 @@ pub enum AlbumSortMethod {
 pub enum AlbumMethod {
     FullQuality,
     Thumbnail,
+    FullQualityWithThumbnail,
 }
 
 pub async fn list_albums(
@@ -123,6 +124,7 @@ pub async fn get_album_by_id(
             AlbumMethod::Thumbnail => {
                 data.image = None;
             }
+            AlbumMethod::FullQualityWithThumbnail => {}
         }
 
         data

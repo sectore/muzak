@@ -19,6 +19,10 @@ impl TableData for Album {
         &["Title", "Artist", "Date", "Label", "Catalog Number"]
     }
 
+    fn get_tile_names() -> &'static [&'static str] {
+        &["Title", "Artist"]
+    }
+
     fn get_rows(
         cx: &mut gpui::App,
         sort: Option<TableSort>,
@@ -74,6 +78,12 @@ impl TableData for Album {
         Ok(cx.get_album_by_id(id.0 as i64, AlbumMethod::Thumbnail).ok())
     }
 
+    fn get_tile(cx: &mut gpui::App, id: Self::Identifier) -> anyhow::Result<Option<Arc<Self>>> {
+        Ok(cx
+            .get_album_by_id(id.0 as i64, AlbumMethod::FullQualityWithThumbnail)
+            .ok())
+    }
+
     fn get_column(&self, cx: &mut App, column: &'static str) -> Option<SharedString> {
         match column {
             "Title" => Some(self.title.0.clone()),
@@ -90,8 +100,12 @@ impl TableData for Album {
         }
     }
 
-    fn get_image(&self) -> Option<Arc<RenderImage>> {
+    fn get_thumb(&self) -> Option<Arc<RenderImage>> {
         self.thumb.as_ref().map(|thumb| thumb.0.clone())
+    }
+
+    fn get_image(&self) -> &Option<Box<[u8]>> {
+        &self.image
     }
 
     fn default_column_widths() -> Vec<f32> {

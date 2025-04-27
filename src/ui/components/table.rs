@@ -5,17 +5,39 @@ use std::rc::Rc;
 
 use ahash::AHashMap;
 use gpui::{prelude::FluentBuilder, *};
+use image::ImageFormat;
 use table_data::{TableData, TableSort};
 use table_item::TableItem;
 use tracing::warn;
 
-use crate::ui::{
-    constants::FONT_AWESOME,
-    theme::Theme,
-    util::{create_or_retrieve_view, prune_views},
+use crate::{
+    data::events::ImageType,
+    ui::{
+        constants::FONT_AWESOME,
+        theme::Theme,
+        util::{create_or_retrieve_view, prune_views},
+    },
 };
 
 type RowMap<T> = AHashMap<usize, Entity<TableItem<T>>>;
+// pub type ViewsModelMap<T: Render> = AHashMap<usize, Entity<T>>;
+
+#[derive(Clone, PartialEq)]
+pub enum TableLayout {
+    /// Row means one element in a row
+    Row,
+    // Tiles means as many elements in a row
+    Tiles(usize),
+}
+
+impl TableLayout {
+    pub fn is_tiles(&self) -> bool {
+        match self {
+            TableLayout::Tiles(_) => true,
+            _ => false,
+        }
+    }
+}
 
 #[allow(type_alias_bounds)]
 pub type OnSelectHandler<T>
@@ -35,6 +57,7 @@ where
     list_state: ListState,
     sort_method: Entity<Option<TableSort>>,
     on_select: Option<OnSelectHandler<T>>,
+    layout: TableLayout,
 }
 
 pub enum TableEvent {
@@ -47,7 +70,11 @@ impl<T> Table<T>
 where
     T: TableData + 'static,
 {
-    pub fn new(cx: &mut App, on_select: Option<OnSelectHandler<T>>) -> Entity<Self> {
+    pub fn new(
+        cx: &mut App,
+        on_select: Option<OnSelectHandler<T>>,
+        layout: TableLayout,
+    ) -> Entity<Self> {
         cx.new(|cx| {
             let widths = cx.new(|_| T::default_column_widths());
             let views = cx.new(|_| AHashMap::new());
@@ -61,6 +88,7 @@ where
                 &sort_method,
                 widths.clone(),
                 on_select.clone(),
+                layout.clone(),
             );
 
             cx.observe(&sort_method, |this, _, cx| {
@@ -82,6 +110,7 @@ where
                 list_state,
                 sort_method,
                 on_select,
+                layout,
             }
         })
     }
@@ -98,6 +127,7 @@ where
             &self.sort_method,
             self.widths.clone(),
             self.on_select.clone(),
+            self.layout.clone(),
         );
 
         self.list_state.scroll_to(curr_scroll);
@@ -112,6 +142,7 @@ where
         sort_method_entity: &Entity<Option<TableSort>>,
         widths: Entity<Vec<f32>>,
         handler: Option<OnSelectHandler<T>>,
+        layout: TableLayout,
     ) -> ListState {
         let sort_method = *sort_method_entity.read(cx);
         let Ok(rows) = T::get_rows(cx, sort_method) else {
@@ -121,34 +152,79 @@ where
             });
         };
 
-        let idents_rc = Rc::new(rows);
+        match layout.clone() {
+            TableLayout::Row => {
+                let idents_rc = Rc::new(rows);
 
-        ListState::new(
-            idents_rc.len(),
-            ListAlignment::Top,
-            px(300.0),
-            move |idx, _, cx| {
-                let idents_rc = idents_rc.clone();
-
-                prune_views(&views, &render_counter, idx, cx);
-                div()
-                    .w_full()
-                    .child(create_or_retrieve_view(
-                        &views,
-                        idx,
-                        |cx| {
-                            TableItem::new(
+                ListState::new(
+                    idents_rc.len(),
+                    ListAlignment::Top,
+                    px(300.0),
+                    move |idx, _, cx| {
+                        let idents_rc = idents_rc.clone();
+                        prune_views(&views, &render_counter, idx, cx);
+                        div()
+                            .w_full()
+                            .child(create_or_retrieve_view(
+                                &views,
+                                idx,
+                                |cx| {
+                                    TableItem::new(
+                                        cx,
+                                        idents_rc[idx].clone(),
+                                        widths.clone(),
+                                        handler.clone(),
+                                        layout.clone(),
+                                        None,
+                                    )
+                                },
                                 cx,
-                                idents_rc[idx].clone(),
-                                widths.clone(),
-                                handler.clone(),
-                            )
-                        },
-                        cx,
-                    ))
-                    .into_any_element()
-            },
-        )
+                            ))
+                            .into_any_element()
+                    },
+                )
+            }
+            TableLayout::Tiles(no) => {
+                // Create chunks of size 'no'
+                let chunked: Vec<Vec<_>> = rows.chunks(no).map(|chunk| chunk.to_vec()).collect();
+                let idents_rc = Rc::new(chunked);
+                tracing::warn!("RC {:?}", idents_rc);
+                ListState::new(
+                    idents_rc.len(),
+                    ListAlignment::Top,
+                    px(300.0),
+                    move |idx, _, cx| {
+                        let mut row = div().h_full().flex().flex_row().justify_start();
+                        let idents_rc = idents_rc.clone();
+                        let idents: Vec<T::Identifier> = idents_rc[idx].clone();
+                        // tracing::warn!("items {:?}", items);
+                        for (i, id) in idents.iter().enumerate() {
+                            let current_idx = idx * idents.len() + i;
+                            // tracing::warn!("current_idx {:?}", current_idx);
+                            tracing::error!("{:?} {:?} {:?}", i, current_idx, id);
+                            // prune_views(&views, &render_counter, current_idx, cx);
+                            row = row.child(create_or_retrieve_view(
+                                &views,
+                                current_idx,
+                                |cx| {
+                                    tracing::warn!("RENDER {:?} {:?} {:?}", i, id, current_idx);
+                                    TableItem::new(
+                                        cx,
+                                        id.clone(),
+                                        widths.clone(),
+                                        handler.clone(),
+                                        layout.clone(),
+                                        Some(ImageType::AlbumArt(current_idx as i64)),
+                                    )
+                                },
+                                cx,
+                            ));
+                        }
+                        div().h_64().w_full().child(row).into_any_element()
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -181,64 +257,66 @@ where
 
         for (i, column) in self.columns.iter().enumerate() {
             let width = self.widths.read(cx)[i];
-            header = header.child(
-                div()
-                    .flex()
-                    .w(px(width))
-                    .when(T::has_images(), |div| {
-                        div.h(px(36.0)).px(px(12.0)).py(px(6.0))
-                    })
-                    .when(!T::has_images(), |div| {
-                        div.h(px(30.0))
-                            .px(px(10.0))
-                            .py(px(2.0))
-                            .when(i == 0, |div| div.pl(px(27.0)))
-                    })
-                    .text_sm()
-                    .flex_shrink_0()
-                    // .when(i != self.columns.len() - 1, |div| {
-                    //     div.border_r_1().border_color(theme.border_color)
-                    // })
-                    .border_b_1()
-                    .border_color(theme.border_color)
-                    .font_weight(FontWeight::BOLD)
-                    .child(SharedString::new_static(column))
-                    .when_some(sort_method.as_ref(), |this, method| {
-                        this.when(method.column == *column, |this| {
-                            this.child(
-                                div()
-                                    .ml(px(7.0))
-                                    .text_size(px(10.0))
-                                    .my_auto()
-                                    .font_family(FONT_AWESOME)
-                                    .when(method.ascending, |div| div.child(""))
-                                    .when(!method.ascending, |div| div.child("")),
-                            )
+            if self.layout == TableLayout::Row {
+                header = header.child(
+                    div()
+                        .flex()
+                        .w(px(width))
+                        .when(T::has_images(), |div| {
+                            div.h(px(36.0)).px(px(12.0)).py(px(6.0))
                         })
-                    })
-                    .id(*column)
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.sort_method.update(cx, |this, cx| {
-                            if let Some(method) = this.as_mut() {
-                                if method.column == *column {
-                                    method.ascending = !method.ascending;
+                        .when(!T::has_images(), |div| {
+                            div.h(px(30.0))
+                                .px(px(10.0))
+                                .py(px(2.0))
+                                .when(i == 0, |div| div.pl(px(27.0)))
+                        })
+                        .text_sm()
+                        .flex_shrink_0()
+                        // .when(i != self.columns.len() - 1, |div| {
+                        //     div.border_r_1().border_color(theme.border_color)
+                        // })
+                        .border_b_1()
+                        .border_color(theme.border_color)
+                        .font_weight(FontWeight::BOLD)
+                        .child(SharedString::new_static(column))
+                        .when_some(sort_method.as_ref(), |this, method| {
+                            this.when(method.column == *column, |this| {
+                                this.child(
+                                    div()
+                                        .ml(px(7.0))
+                                        .text_size(px(10.0))
+                                        .my_auto()
+                                        .font_family(FONT_AWESOME)
+                                        .when(method.ascending, |div| div.child(""))
+                                        .when(!method.ascending, |div| div.child("")),
+                                )
+                            })
+                        })
+                        .id(*column)
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.sort_method.update(cx, |this, cx| {
+                                if let Some(method) = this.as_mut() {
+                                    if method.column == *column {
+                                        method.ascending = !method.ascending;
+                                    } else {
+                                        *this = Some(TableSort {
+                                            column,
+                                            ascending: true,
+                                        });
+                                    }
                                 } else {
                                     *this = Some(TableSort {
-                                        column: *column,
+                                        column,
                                         ascending: true,
                                     });
                                 }
-                            } else {
-                                *this = Some(TableSort {
-                                    column: *column,
-                                    ascending: true,
-                                });
-                            }
 
-                            cx.notify();
-                        })
-                    })),
-            );
+                                cx.notify();
+                            })
+                        })),
+                );
+            }
         }
 
         div()
